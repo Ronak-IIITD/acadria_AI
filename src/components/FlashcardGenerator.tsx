@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Flashcard } from '../studyTypes';
+import { Flashcard } from '@/domain/studyTypes';
 import { generateFlashcards } from '../services/studyToolsService';
 import SparklesIcon from './icons/SparklesIcon';
 import CloseIcon from './icons/CloseIcon';

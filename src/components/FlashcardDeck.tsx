@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Flashcard from './Flashcard';
-import { Flashcard as FlashcardType, getDueFlashcards, getNewFlashcards, calculateStudyStats } from '../studyTypes';
+import { Flashcard as FlashcardType, getDueFlashcards, getNewFlashcards, calculateStudyStats } from '@/domain/studyTypes';
 import CloseIcon from './icons/CloseIcon';
 
 interface FlashcardDeckProps {

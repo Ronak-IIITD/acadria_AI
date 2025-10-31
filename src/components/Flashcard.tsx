@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Flashcard as FlashcardType, calculateNextReview } from '../studyTypes';
+import { Flashcard as FlashcardType, calculateNextReview } from '@/domain/studyTypes';
 
 interface FlashcardProps {
   card: FlashcardType;

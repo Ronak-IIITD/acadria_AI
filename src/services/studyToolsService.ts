@@ -1,5 +1,5 @@
 import { generateFlashcardsFromContent, getAiResponse } from './geminiService';
-import { Flashcard, QuizQuestion, Quiz, Summary } from '../studyTypes';
+import { Flashcard, QuizQuestion, Quiz, Summary } from '@/domain/studyTypes';
 
 /**
  * Generate flashcards from document content using Gemini AI

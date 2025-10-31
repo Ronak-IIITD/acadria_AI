@@ -7,7 +7,7 @@ import PdfViewer from './PdfViewer';
 import FlashcardGenerator from './FlashcardGenerator';
 import FlashcardDeck from './FlashcardDeck';
 import { AiModel, StudyFile } from '../types';
-import { Flashcard } from '../studyTypes';
+import { Flashcard } from '@/domain/studyTypes';
 
 const FLASHCARDS_STORAGE_KEY = 'studysync_flashcards';
 

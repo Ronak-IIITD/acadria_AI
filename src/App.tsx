@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from './firebase';
+import { auth } from './lib/firebase';
 import Dashboard from './components/Dashboard';
 import Login from './components/Login';
 import Header from './components/Header';

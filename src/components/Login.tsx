@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth, googleProvider } from '../firebase';
+import { auth, googleProvider } from '../lib/firebase';
 import LogoIcon from './icons/LogoIcon';
 import type { User } from '../types';
 
