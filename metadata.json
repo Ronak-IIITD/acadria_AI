@@ -1,0 +1,7 @@
+{
+  "name": "StudySync AI",
+  "description": "StudySync AI is an AI-powered learning companion that helps students organize, study, and interact with their materials intelligently. Users can upload study documents, and the app builds a Retrieval-Augmented Generation (RAG) chatbot that answers questions strictly based on uploaded materials.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

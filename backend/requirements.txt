@@ -1,0 +1,26 @@
+# FastAPI and server
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.12
+pydantic==2.10.3
+pydantic-settings==2.6.1
+python-dotenv==1.0.1
+
+# Document processing (lightweight)
+PyPDF2==3.0.1
+python-docx==1.1.2
+markdown==3.7
+
+# AI - Google Gemini (lightweight alternative)
+google-generativeai==0.8.3
+
+# Firebase (optional - lightweight)
+firebase-admin==6.6.0
+
+# Utilities
+aiofiles==24.1.0
+
+# NOTE: Heavy ML libraries removed due to disk space constraints (5GB+):
+# - sentence-transformers, faiss-cpu, langchain (requires PyTorch ~3GB)
+# Using Gemini API directly for embeddings and chat instead
+# When more space available, can add FAISS vector store later
