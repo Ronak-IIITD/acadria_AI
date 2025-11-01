@@ -69,6 +69,10 @@
   --glow-medium: 0 0 64px rgba(139, 147, 212, 0.12);
   --glow-accent: 0 0 24px rgba(139, 147, 212, 0.2);
 
+  /* Brand gradient (teal → lavender) */
+  --brand-grad-start: #35d0c3; /* teal */
+  --brand-grad-end: #8b93d4;   /* lavender */
+
   /* Spacing Scale */
   --space-xs: 0.25rem;    /* 4px */
   --space-sm: 0.5rem;     /* 8px */
@@ -341,7 +345,6 @@ html.dark .glass-card::before {
 
 .glass-card:hover {
   box-shadow: var(--shadow-md), var(--shadow-inner);
-  transform: translateY(-2px);
   border-color: var(--color-border-medium);
 }
 
@@ -364,13 +367,13 @@ html.dark .glass-card:hover::before {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: var(--space-md);
+  padding: var(--space-md) 0 var(--space-md) 0;
   gap: var(--space-md);
 }
 
 @media (min-width: 1024px) {
   .chat-container {
-    padding: var(--space-lg);
+    padding: var(--space-lg) 0 var(--space-lg) 0;
     gap: var(--space-lg);
   }
 }
@@ -595,6 +598,19 @@ html.dark .chat-input:focus {
 html.dark .eyebrow {
   background: var(--color-accent-primary-soft);
   color: var(--color-accent-primary);
+}
+
+/* Brand wordmark helpers */
+.brand-word {
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.02em;
+}
+
+.brand-ai {
+  background: linear-gradient(135deg, var(--brand-grad-start), var(--brand-grad-end));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .section-heading {
@@ -1180,6 +1196,37 @@ html.dark .katex-html .delimsizing.delimsizing-inner {
 
 .transition-smooth {
   transition: all var(--transition-base);
+}
+
+/* ============================================
+   WELCOME FEATURE CARDS
+   ============================================ */
+.welcome-feature-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem 1.5rem;
+  border-radius: var(--radius-2xl);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-soft);
+  transition: all var(--transition-base);
+}
+
+.welcome-feature-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--color-border-medium);
+}
+
+html.dark .welcome-feature-card {
+  background: var(--color-bg-elevated);
+  border-color: var(--color-border-medium);
+}
+
+html.dark .welcome-feature-card:hover {
+  box-shadow: var(--shadow-md);
 }
 
 .focus-ring {

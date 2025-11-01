@@ -16,7 +16,12 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onModelCha
         id="model-select"
         value={selectedModel}
         onChange={(e) => onModelChange(e.target.value as AiModel)}
-        className="w-full bg-white/70 dark:bg-black/40 border border-gray-400/50 dark:border-gray-500/50 text-gray-800 dark:text-gray-100 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm"
+        className="w-full rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm"
+        style={{
+          background: 'var(--color-bg-elevated)',
+          border: '1px solid var(--color-border-soft)',
+          color: 'var(--color-text-primary)'
+        }}
       >
         {Object.values(AiModel).map((model) => (
           <option key={model} value={model} className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100">
@@ -24,9 +29,6 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onModelCha
           </option>
         ))}
       </select>
-      <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
-        Note: Currently, all models are powered by Gemini for this demo.
-      </p>
     </div>
   );
 };

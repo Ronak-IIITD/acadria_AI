@@ -30,6 +30,16 @@ const Dashboard: React.FC = () => {
   const [isResizingPdf, setIsResizingPdf] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Responsive: stack on small screens
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth <= 768);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
   // Load flashcards from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem(FLASHCARDS_STORAGE_KEY);
@@ -162,28 +172,33 @@ const Dashboard: React.FC = () => {
   
   return (
     <div className="content-container" ref={containerRef}>
-      <div className="flex h-full">
+      <div className={`flex h-full ${isMobile ? 'flex-col' : ''}`}>
         {/* Left Sidebar - Materials */}
         <aside 
           className="glass-card flex flex-col h-full overflow-hidden" 
           style={{ 
-            width: `${sidebarWidth}px`,
-            minWidth: '280px',
-            maxWidth: '600px',
+            width: isMobile ? '100%' : `${sidebarWidth}px`,
+            minWidth: isMobile ? '100%' : '280px',
+            maxWidth: isMobile ? '100%' : '600px',
             borderRadius: 0,
-            borderRight: '1px solid var(--color-border-soft)'
+            borderRight: isMobile ? 'none' : '1px solid var(--color-border-soft)',
+            marginLeft: 0,
+            paddingLeft: 0
           }}
         >
-          <div className="p-4 border-b border-gray-200/40 dark:border-gray-700/30">
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100" style={{ letterSpacing: '-0.01em' }}>
+          <div className="px-4 py-4 border-b" style={{ borderColor: 'var(--color-border-soft)' }}>
+            <h2 className="text-base font-semibold" style={{ 
+              color: 'var(--color-text-primary)',
+              letterSpacing: '-0.01em' 
+            }}>
               Study Materials
             </h2>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
               Upload & organize your content
             </p>
           </div>
           
-          <div className="p-4">
+          <div className="px-4 py-4">
             <FileUpload onFilesAdded={handleFilesAdded} />
           </div>
           
@@ -200,19 +215,21 @@ const Dashboard: React.FC = () => {
             />
           </div>
           
-          <div className="p-4 border-t border-gray-200/40 dark:border-gray-700/30">
+          <div className="px-4 py-4 border-t" style={{ borderColor: 'var(--color-border-soft)' }}>
             <ModelSelector selectedModel={selectedModel} onModelChange={setSelectedModel} />
           </div>
         </aside>
 
         {/* Resize Handle for Sidebar */}
-        <div
-          onMouseDown={handleSidebarMouseDown}
-          className="w-1 hover:w-1.5 bg-gray-300/50 dark:bg-gray-600/50 hover:bg-purple-400 dark:hover:bg-purple-500 cursor-col-resize transition-all flex-shrink-0 relative group"
-          style={{ zIndex: 10 }}
-        >
-          <div className="absolute inset-y-0 -left-1 -right-1" />
-        </div>
+        {!isMobile && (
+          <div
+            onMouseDown={handleSidebarMouseDown}
+            className="w-1 hover:w-1.5 bg-gray-300/50 dark:bg-gray-600/50 hover:bg-purple-400 dark:hover:bg-purple-500 cursor-col-resize transition-all flex-shrink-0 relative group"
+            style={{ zIndex: 10 }}
+          >
+            <div className="absolute inset-y-0 -left-1 -right-1" />
+          </div>
+        )}
         
         {/* Middle - PDF Viewer (only when file is being viewed) */}
         {viewingFile && (
@@ -220,9 +237,9 @@ const Dashboard: React.FC = () => {
             <aside 
               className="glass-card flex flex-col h-full overflow-hidden" 
               style={{ 
-                width: `${pdfWidth}%`,
+                width: isMobile ? '100%' : `${pdfWidth}%`,
                 borderRadius: 0,
-                borderRight: '1px solid var(--color-border-soft)'
+                borderRight: isMobile ? 'none' : '1px solid var(--color-border-soft)'
               }}
             >
               <PdfViewer
@@ -234,13 +251,15 @@ const Dashboard: React.FC = () => {
             </aside>
 
             {/* Resize Handle for PDF */}
-            <div
-              onMouseDown={handlePdfMouseDown}
-              className="w-1 hover:w-1.5 bg-gray-300/50 dark:bg-gray-600/50 hover:bg-purple-400 dark:hover:bg-purple-500 cursor-col-resize transition-all flex-shrink-0 relative group"
-              style={{ zIndex: 10 }}
-            >
-              <div className="absolute inset-y-0 -left-1 -right-1" />
-            </div>
+            {!isMobile && (
+              <div
+                onMouseDown={handlePdfMouseDown}
+                className="w-1 hover:w-1.5 bg-gray-300/50 dark:bg-gray-600/50 hover:bg-purple-400 dark:hover:bg-purple-500 cursor-col-resize transition-all flex-shrink-0 relative group"
+                style={{ zIndex: 10 }}
+              >
+                <div className="absolute inset-y-0 -left-1 -right-1" />
+              </div>
+            )}
           </>
         )}
         
@@ -249,7 +268,9 @@ const Dashboard: React.FC = () => {
           className="glass-card flex flex-col flex-1" 
           style={{ 
             borderRadius: 0,
-            minWidth: 0
+            minWidth: 0,
+            marginRight: 0,
+            paddingRight: 0
           }}
         >
           <CalmChatWindow

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useContext } from 'react';
 import type { AiModel, ChatMessage, StudyFile } from '../types';
 import SendIcon from './icons/SendIcon';
+import SparklesIcon from './icons/SparklesIcon';
 import { getAiResponse, getAiSummary } from '../services/geminiService';
 import LogoIcon from './icons/LogoIcon';
 import ReactMarkdown from 'react-markdown';
@@ -48,25 +49,98 @@ declare global {
 const MAX_INPUT_LENGTH = 2000;
 
 const WelcomeState: React.FC = () => (
-  <div className="flex flex-col items-center justify-center h-full text-center px-8 py-16 animate-fade-in">
-    <div className="mb-8 p-6 rounded-3xl bg-gradient-to-br from-purple-50/80 to-blue-50/80 dark:from-purple-900/20 dark:to-blue-900/20 shadow-sm">
-      <LogoIcon className="h-16 w-16 text-gray-600 dark:text-gray-300" />
+  <div className="flex flex-col items-center justify-center h-full text-center px-4 py-12">
+    {/* Logo Icon */}
+    <div className="inline-flex p-4 rounded-full mb-6" style={{ 
+      background: 'var(--color-accent-soft)',
+      backdropFilter: 'blur(8px)',
+      color: 'rgb(59, 130, 246)'
+    }}>
+      <SparklesIcon className="h-10 w-10" />
     </div>
-    <h2 className="text-3xl font-semibold text-gray-800 dark:text-gray-100 mb-4" style={{ letterSpacing: '-0.02em' }}>
+    
+    {/* Heading */}
+    <h2 className="text-2xl font-semibold mb-3" style={{ 
+      color: 'var(--color-text-primary)',
+      letterSpacing: '-0.01em' 
+    }}>
       Welcome to StudySync AI
     </h2>
-    <p className="text-lg text-gray-500 dark:text-gray-400 max-w-md leading-relaxed">
-      Upload your study materials to begin. I'll help you learn by answering questions based on your documents.
+    
+    {/* Subtext */}
+    <p className="text-sm mb-12 max-w-xl leading-relaxed" style={{ 
+      color: 'var(--color-text-tertiary)' 
+    }}>
+      Upload your study materials and ask questions. Get intelligent answers based on your documents.
     </p>
-    <div className="mt-12 flex flex-wrap gap-3 justify-center">
-      <div className="px-4 py-2 rounded-full bg-white/60 dark:bg-gray-800/40 border border-gray-200/60 dark:border-gray-700/40 text-sm text-gray-600 dark:text-gray-300 shadow-sm">
-        📄 Upload PDFs
+    
+    {/* Feature Cards */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full px-4">
+      {/* Upload Card */}
+      <div className="welcome-feature-card group">
+        <div className="inline-flex p-3 rounded-full mb-4 transition-colors" style={{ 
+          background: 'var(--color-accent-soft)',
+          color: 'rgb(59, 130, 246)'
+        }}>
+          <svg className="h-6 w-6 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+        </div>
+        <h3 className="font-semibold mb-2" style={{ 
+          color: 'var(--color-text-primary)',
+          fontSize: '0.9375rem'
+        }}>
+          Upload
+        </h3>
+        <p className="text-sm leading-relaxed" style={{ 
+          color: 'var(--color-text-tertiary)' 
+        }}>
+          Add your study materials
+        </p>
       </div>
-      <div className="px-4 py-2 rounded-full bg-white/60 dark:bg-gray-800/40 border border-gray-200/60 dark:border-gray-700/40 text-sm text-gray-600 dark:text-gray-300 shadow-sm">
-        💬 Ask Questions
+      
+      {/* Ask Card */}
+      <div className="welcome-feature-card group">
+        <div className="inline-flex p-3 rounded-full mb-4 transition-colors" style={{ 
+          background: 'var(--color-accent-soft)',
+          color: 'rgb(59, 130, 246)'
+        }}>
+          <svg className="h-6 w-6 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+          </svg>
+        </div>
+        <h3 className="font-semibold mb-2" style={{ 
+          color: 'var(--color-text-primary)',
+          fontSize: '0.9375rem'
+        }}>
+          Ask
+        </h3>
+        <p className="text-sm leading-relaxed" style={{ 
+          color: 'var(--color-text-tertiary)' 
+        }}>
+          Type your questions
+        </p>
       </div>
-      <div className="px-4 py-2 rounded-full bg-white/60 dark:bg-gray-800/40 border border-gray-200/60 dark:border-gray-700/40 text-sm text-gray-600 dark:text-gray-300 shadow-sm">
-        🎯 Get Answers
+      
+      {/* Learn Card */}
+      <div className="welcome-feature-card group">
+        <div className="inline-flex p-3 rounded-full mb-4 transition-colors" style={{ 
+          background: 'var(--color-accent-soft)',
+          color: 'rgb(59, 130, 246)'
+        }}>
+          <SparklesIcon className="h-6 w-6 transition-colors" />
+        </div>
+        <h3 className="font-semibold mb-2" style={{ 
+          color: 'var(--color-text-primary)',
+          fontSize: '0.9375rem'
+        }}>
+          Learn
+        </h3>
+        <p className="text-sm leading-relaxed" style={{ 
+          color: 'var(--color-text-tertiary)' 
+        }}>
+          Get AI-powered insights
+        </p>
       </div>
     </div>
   </div>
@@ -495,16 +569,7 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
 
       {/* Input Area */}
       <div className="space-y-3">
-        <div className="chat-input-wrapper">
-          <button
-            onClick={() => setIsSummaryModalOpen(true)}
-            disabled={isLoading || (messages.length === 0 && files.length === 0)}
-            className="absolute left-3 top-1/2 -translate-y-1/2 button-icon"
-            aria-label="Request a summary"
-          >
-            <SummarizeIcon className="h-5 w-5" />
-          </button>
-          
+        <div className="relative flex items-center">
           <textarea
             ref={textareaRef}
             value={input}
@@ -516,58 +581,37 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
               }
             }}
             placeholder={placeholderText}
-            className="chat-input min-h-[56px] max-h-[200px] resize-none"
+            className="w-full px-4 py-3.5 pr-14 rounded-xl resize-none text-sm"
+            style={{
+              background: 'var(--color-bg-elevated)',
+              border: '1px solid var(--color-border-soft)',
+              color: 'var(--color-text-primary)',
+              minHeight: '52px',
+              maxHeight: '200px',
+              outline: 'none'
+            }}
             rows={1}
             disabled={files.length === 0 || isLoading}
           />
           
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-            {isSpeechSupported && (
-              <button
-                onClick={handleToggleListening}
-                disabled={isLoading || files.length === 0}
-                className="button-icon"
-                aria-label={isListening ? "Stop recording" : "Use microphone"}
-              >
-                {isListening ? (
-                  <StopCircleIcon className="h-5 w-5 text-red-400 animate-mic-pulse" />
-                ) : (
-                  <MicrophoneIcon className="h-5 w-5" />
-                )}
-              </button>
-            )}
-            
-            <button
-              onClick={() => handleSend()}
-              disabled={isLoading || input.trim() === '' || files.length === 0 || isOverLimit}
-              className="button-primary px-3 py-2"
-              aria-label="Send message"
-            >
-              <SendIcon className="h-5 w-5" />
-            </button>
-          </div>
+          <button
+            onClick={() => handleSend()}
+            disabled={isLoading || input.trim() === '' || files.length === 0 || isOverLimit}
+            className="absolute right-2.5 p-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+            style={{
+              background: 'rgb(59, 130, 246)',
+              color: 'white',
+              top: '50%',
+              transform: 'translateY(-50%)'
+            }}
+            aria-label="Send message"
+          >
+            <SendIcon className="h-4 w-4" />
+          </button>
         </div>
-        
-        <div className="flex items-center justify-between px-2">
-          <ToggleSwitch
-            id="web-search-toggle"
-            checked={useWebSearch}
-            onChange={setUseWebSearch}
-            label="Web Search"
-            disabled={files.length === 0 || isLoading}
-          />
-          <div className="text-xs font-medium">
-            <span className={
-              isOverLimit 
-                ? 'text-red-500 font-bold' 
-                : isApproachingLimit 
-                  ? 'text-amber-500 font-semibold'
-                  : 'text-gray-500 dark:text-gray-400'
-            }>
-              {input.length} / {MAX_INPUT_LENGTH}
-            </span>
-          </div>
-        </div>
+        <p className="text-xs text-center" style={{ color: 'var(--color-text-tertiary)' }}>
+          AI responses are based on your uploaded documents
+        </p>
       </div>
 
       {/* Summary Modal */}
