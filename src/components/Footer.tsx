@@ -5,18 +5,22 @@ import QuantumLeapLogo from './icons/QuantumLeapLogo';
 
 const Footer: React.FC = () => {
   return (
-    <footer className="text-center py-12 mt-20 border-t border-white/10">
-      <div className="mb-8">
-        <h4 className="text-sm font-semibold text-gray-500 dark:text-gray-400/80 uppercase tracking-wider mb-4">
-          Trusted By The Best
-        </h4>
-        <div className="flex justify-center items-center space-x-8 text-gray-500 dark:text-gray-400/60">
-          <InnovateCorpLogo className="h-6" />
-          <FutureTechLogo className="h-5" />
-          <QuantumLeapLogo className="h-7" />
+    <footer className="mt-24 border-t" style={{ borderColor: 'var(--color-border-soft)' }}>
+      <div className="section-shell py-12 text-center">
+        <div className="space-y-8">
+          <div>
+            <span className="eyebrow">Trusted by teams that value focus</span>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-10 text-gray-500 dark:text-gray-400/70">
+              <InnovateCorpLogo className="h-6" />
+              <FutureTechLogo className="h-5" />
+              <QuantumLeapLogo className="h-7" />
+            </div>
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            &copy; {new Date().getFullYear()} StudySync AI. Crafted for calm, focused learning.
+          </p>
         </div>
       </div>
-      <p className="text-gray-800 dark:text-gray-300/70 text-sm">&copy; {new Date().getFullYear()} StudySync AI. All rights reserved.</p>
     </footer>
   );
 };

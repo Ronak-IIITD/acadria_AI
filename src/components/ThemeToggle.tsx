@@ -9,7 +9,7 @@ const ThemeToggle: React.FC = () => {
   return (
     <button
       onClick={toggleTheme}
-      className="p-2.5 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100/80 dark:hover:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-purple-300/50 dark:focus:ring-purple-500/30 transition-all"
+      className="theme-toggle"
       aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
     >
       {theme === 'light' ? (

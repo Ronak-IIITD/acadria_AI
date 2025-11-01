@@ -5,39 +5,42 @@ import SparklesIcon from './icons/SparklesIcon';
 
 const features = [
   {
-    icon: <BrainCircuitIcon className="h-10 w-10 mb-4" />,
-    title: "Smart Q&A",
-    description: "Get precise, context-aware answers based exclusively on your uploaded documents. No more endless searching.",
+    icon: BrainCircuitIcon,
+    title: 'Grounded Q&A',
+    description: 'Ask anything about your material and receive responses that cite the passages your notes came from.',
   },
   {
-    icon: <FileCheckIcon className="h-10 w-10 mb-4" />,
-    title: "Multi-Format Support",
-    description: "Seamlessly upload and analyze PDF, DOCX, and TXT files. All your study materials, all in one place.",
+    icon: FileCheckIcon,
+    title: 'Thoughtful imports',
+    description: 'PDF, DOCX, TXT, and slides are parsed gently, keeping structure intact for accurate summaries.',
   },
   {
-    icon: <SparklesIcon className="h-10 w-10 mb-4" />,
-    title: "Dual-Mode Intelligence",
-    description: "Rely on document-based answers for focused study, or tap into general knowledge for broader questions.",
+    icon: SparklesIcon,
+    title: 'Study modes in sync',
+    description: 'Flashcards, quizzes, and key takeaways all originate from the same calm workspace — no context switching.',
   },
 ];
 
 const Features: React.FC = () => {
   return (
-    <section className="py-20 sm:py-24">
-      <div className="text-center">
-        <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">Why StudySync AI?</h2>
-        <p className="mt-4 text-lg text-gray-800 dark:text-gray-100 font-medium">The ultimate toolkit for efficient learning.</p>
+    <section id="features" className="section-shell">
+      <div className="section-intro">
+        <span className="eyebrow">In rhythm with your study flow</span>
+        <h2 className="section-heading">A toolkit that stays out of the spotlight</h2>
+        <p className="subheading">
+          Each capability quietly supports comprehension so you can focus on understanding instead of configuring.
+        </p>
       </div>
-      <div className="mt-16 grid gap-8 md:grid-cols-3">
-        {features.map((feature, index) => (
-          <div
-            key={feature.title}
-            className="glass-card p-8 text-center flex flex-col items-center transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20 text-purple-600 dark:text-purple-400"
-            style={{ animationDelay: `${index * 150}ms` }}
-          >
-            {feature.icon}
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">{feature.title}</h3>
-            <p className="mt-2 text-base text-gray-800 dark:text-gray-200">{feature.description}</p>
+      <div className="card-grid">
+        {features.map(({ icon: Icon, title, description }) => (
+          <div key={title} className="feature-card">
+            <div className="feature-icon">
+              <Icon className="h-6 w-6" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+              <p className="text-[0.98rem] leading-relaxed text-gray-600 dark:text-gray-300">{description}</p>
+            </div>
           </div>
         ))}
       </div>
