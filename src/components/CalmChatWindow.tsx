@@ -3,7 +3,7 @@ import type { AiModel, ChatMessage, StudyFile } from '../types';
 import SendIcon from './icons/SendIcon';
 import SparklesIcon from './icons/SparklesIcon';
 import { getAiResponse, getAiSummary } from '../services/geminiService';
-import LogoIcon from './icons/LogoIcon';
+import AIBookIcon from './icons/AIBookIcon';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -52,11 +52,10 @@ const WelcomeState: React.FC = () => (
   <div className="flex flex-col items-center justify-center h-full text-center px-4 py-12">
     {/* Logo Icon */}
     <div className="inline-flex p-4 rounded-full mb-6" style={{ 
-      background: 'var(--color-accent-soft)',
-      backdropFilter: 'blur(8px)',
-      color: 'rgb(59, 130, 246)'
+      background: 'linear-gradient(135deg, rgba(53, 208, 195, 0.15) 0%, rgba(139, 147, 212, 0.15) 100%)',
+      backdropFilter: 'blur(8px)'
     }}>
-      <SparklesIcon className="h-10 w-10" />
+      <AIBookIcon className="h-10 w-10" style={{ color: 'var(--color-text-primary)' }} />
     </div>
     
     {/* Heading */}
@@ -439,8 +438,8 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
     <div className="chat-container">
       {/* Search Bar */}
       {messages.length > 0 && (
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+        <div className="relative px-6">
+          <div className="absolute inset-y-0 left-10 flex items-center pointer-events-none">
             <SearchIcon className="h-4 w-4 text-gray-400 dark:text-gray-500" />
           </div>
           <input
@@ -453,7 +452,7 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute inset-y-0 right-0 pr-4 flex items-center button-icon"
+              className="absolute inset-y-0 right-10 flex items-center button-icon"
               aria-label="Clear search"
             >
               <CloseIcon className="h-4 w-4" />
@@ -494,7 +493,7 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
             >
               {msg.sender === 'ai' && (
                 <div className="chat-avatar">
-                  <LogoIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                  <AIBookIcon className="h-5 w-5" style={{ color: 'var(--color-text-tertiary)' }} />
                 </div>
               )}
               <div className={`flex flex-col gap-3 ${msg.sender === 'ai' ? 'flex-1 min-w-0' : ''}`}>
@@ -568,7 +567,7 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
       </div>
 
       {/* Input Area */}
-      <div className="space-y-3">
+      <div className="space-y-3 px-6">
         <div className="relative flex items-center">
           <textarea
             ref={textareaRef}

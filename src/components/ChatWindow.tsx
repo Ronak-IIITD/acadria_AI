@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useCo
 import type { AiModel, ChatMessage, StudyFile } from '../types';
 import SendIcon from './icons/SendIcon';
 import { getAiResponse, getAiSummary } from '../services/geminiService';
-import LogoIcon from './icons/LogoIcon';
+import AIBookIcon from './icons/AIBookIcon';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -52,8 +52,11 @@ const MAX_INPUT_LENGTH = 2000;
 
 const WelcomeMessage: React.FC = () => (
     <div className="flex flex-col items-center justify-center h-full text-center p-8 animate-fade-in">
-        <div className="mb-6 p-4 rounded-full bg-gradient-to-br from-purple-100/50 to-blue-100/50 dark:from-purple-900/20 dark:to-blue-900/20">
-            <LogoIcon className="h-12 w-12 text-gray-700 dark:text-gray-200" />
+        <div className="mb-6 p-5 rounded-full" style={{
+            background: 'linear-gradient(135deg, rgba(53, 208, 195, 0.1) 0%, rgba(139, 147, 212, 0.1) 100%)',
+            backdropFilter: 'blur(8px)'
+        }}>
+            <AIBookIcon className="h-12 w-12" style={{ color: 'var(--color-text-primary)' }} />
         </div>
         <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-3" style={{ letterSpacing: '-0.01em' }}>
             Welcome to StudySync AI
@@ -470,8 +473,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQuest
             className={classNames}
           >
             {msg.sender === 'ai' && (
-              <div className="flex-shrink-0 h-9 w-9 rounded-full bg-gradient-to-br from-purple-100/80 to-blue-100/80 dark:from-purple-900/30 dark:to-blue-900/30 flex items-center justify-center shadow-sm border border-purple-200/30 dark:border-purple-700/20">
-                  <LogoIcon className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+              <div className="flex-shrink-0 h-9 w-9 rounded-full flex items-center justify-center shadow-sm border" style={{
+                background: 'linear-gradient(135deg, rgba(53, 208, 195, 0.1) 0%, rgba(139, 147, 212, 0.1) 100%)',
+                borderColor: 'var(--color-border-soft)'
+              }}>
+                  <AIBookIcon className="h-5 w-5" style={{ color: 'var(--color-text-primary)' }} />
               </div>
             )}
             <div className={`flex flex-col max-w-xs md:max-w-md lg:max-w-2xl ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
@@ -612,7 +618,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQuest
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="mt-auto pt-4 border-t border-gray-200/40 dark:border-gray-700/30">
+      <div className="mt-auto pt-4 border-t border-gray-200/40 dark:border-gray-700/30 px-6">
         <div className="relative">
           <button
             onClick={() => setIsSummaryModalOpen(true)}

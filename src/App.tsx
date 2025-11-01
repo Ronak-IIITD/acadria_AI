@@ -80,13 +80,13 @@ const App = () => {
       <div className="min-h-screen font-sans text-gray-800 dark:text-gray-200 isolate">
         <Header user={user} onLogout={handleLogout} onLoginClick={openLoginModal} isScrolled={isScrolled} />
         <main>
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            {user ? (
-              <Dashboard />
-            ) : (
+          {user ? (
+            <Dashboard />
+          ) : (
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
               <LandingPage onGetStarted={openLoginModal} />
-            )}
-          </div>
+            </div>
+          )}
         </main>
         {isLoginOpen && <Login onLogin={handleLogin} onClose={closeLoginModal} />}
       </div>

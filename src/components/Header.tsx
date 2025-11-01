@@ -1,6 +1,5 @@
 import React from 'react';
-import LogoIcon from './icons/LogoIcon';
-import StudySyncLogo from './icons/StudySyncLogo';
+import AIBookIcon from './icons/AIBookIcon';
 import type { User } from '../types';
 import ThemeToggle from './ThemeToggle';
 
@@ -17,7 +16,7 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, onLoginClick, isScrolle
       className="sticky top-0 z-50 transition-all duration-300"
       style={{
         background: 'var(--color-bg-primary)',
-        borderBottom: '1px solid var(--color-border-soft)'
+        borderBottom: '2px solid var(--color-border-medium)'
       }}
     >
       <div className="w-full px-6 py-2.5">
@@ -25,10 +24,13 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, onLoginClick, isScrolle
           {/* Logo Section */}
           <div className="flex items-center space-x-3">
             <div
-              className="flex h-9 w-9 items-center justify-center rounded-xl"
-              style={{ backgroundColor: 'var(--color-accent-primary-soft)' }}
+              className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors"
+              style={{ 
+                background: 'linear-gradient(135deg, #35d0c3 0%, #8b93d4 100%)',
+                opacity: 0.9
+              }}
             >
-              <StudySyncLogo className="h-4.5 w-4.5" />
+              <AIBookIcon className="h-5 w-5 text-white" />
             </div>
             <h1 className="text-base brand-word" style={{ color: 'var(--color-text-primary)' }}>
               StudySync <span className="brand-ai">AI</span>

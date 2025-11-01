@@ -23,10 +23,10 @@
   --color-text-muted: #A8B5C3;
   --color-text-inverse: #FFFFFF;
 
-  /* Border Colors - Ultra subtle */
-  --color-border-light: rgba(203, 213, 225, 0.5);
-  --color-border-medium: rgba(148, 163, 184, 0.35);
-  --color-border-soft: rgba(226, 232, 240, 0.6);
+  /* Border Colors - Better visibility in light mode */
+  --color-border-light: rgba(203, 213, 225, 0.8);
+  --color-border-medium: rgba(148, 163, 184, 0.6);
+  --color-border-soft: rgba(203, 213, 225, 0.75);
 
   /* Accent Colors - Pastel, calming tones */
   --color-accent-primary: #8B93D4;
@@ -56,13 +56,13 @@
   --color-info: #8BB8DC;
   --color-info-soft: rgba(139, 184, 220, 0.15);
 
-  /* Shadows - Extremely soft and natural */
-  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.03);
-  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.04);
-  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.06);
-  --shadow-lg: 0 16px 40px rgba(15, 23, 42, 0.08);
-  --shadow-xl: 0 24px 64px rgba(15, 23, 42, 0.1);
-  --shadow-inner: inset 0 2px 4px rgba(15, 23, 42, 0.04);
+  /* Shadows - More visible in light mode */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.1);
+  --shadow-lg: 0 16px 40px rgba(15, 23, 42, 0.12);
+  --shadow-xl: 0 24px 64px rgba(15, 23, 42, 0.14);
+  --shadow-inner: inset 0 2px 4px rgba(15, 23, 42, 0.06);
 
   /* Glow Effects - Subtle ambient light */
   --glow-soft: 0 0 40px rgba(139, 147, 212, 0.08);
@@ -480,24 +480,25 @@ html.dark .chat-bubble-ai {
   padding-left: 3.5rem;
   padding-right: 8.5rem;
   border-radius: var(--radius-2xl);
-  border: 1.5px solid var(--color-border-soft);
+  border: 2px solid var(--color-border-medium);
   background: var(--color-bg-elevated);
   color: var(--color-text-primary);
   font-size: 0.9375rem;
   line-height: var(--line-height-normal);
   resize: none;
   transition: all var(--transition-base);
-  box-shadow: var(--shadow-xs), var(--shadow-inner);
+  box-shadow: var(--shadow-sm), var(--shadow-inner);
 }
 
 .chat-input:focus {
   outline: none;
   border-color: var(--color-accent-primary);
-  box-shadow: var(--shadow-sm), 0 0 0 3px var(--color-accent-primary-soft);
+  box-shadow: var(--shadow-md), 0 0 0 3px var(--color-accent-primary-soft);
 }
 
 .chat-input::placeholder {
-  color: var(--color-text-muted);
+  color: var(--color-text-tertiary);
+  opacity: 0.8;
 }
 
 html.dark .chat-input {
@@ -548,10 +549,10 @@ html.dark .chat-input:focus {
 }
 
 .content-container {
-  max-width: 100%;
+  width: 100%;
   margin: 0;
   padding: 0;
-  height: calc(100vh - 4rem);
+  height: calc(100vh - 3.5rem);
   overflow: hidden;
 }
 
@@ -1210,14 +1211,15 @@ html.dark .katex-html .delimsizing.delimsizing-inner {
   padding: 2rem 1.5rem;
   border-radius: var(--radius-2xl);
   background: var(--color-bg-elevated);
-  border: 1px solid var(--color-border-soft);
+  border: 1.5px solid var(--color-border-medium);
+  box-shadow: var(--shadow-xs);
   transition: all var(--transition-base);
 }
 
 .welcome-feature-card:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
-  border-color: var(--color-border-medium);
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-accent-primary);
 }
 
 html.dark .welcome-feature-card {

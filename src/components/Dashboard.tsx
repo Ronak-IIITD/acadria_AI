@@ -175,18 +175,19 @@ const Dashboard: React.FC = () => {
       <div className={`flex h-full ${isMobile ? 'flex-col' : ''}`}>
         {/* Left Sidebar - Materials */}
         <aside 
-          className="glass-card flex flex-col h-full overflow-hidden" 
+          className="flex flex-col h-full overflow-hidden" 
           style={{ 
             width: isMobile ? '100%' : `${sidebarWidth}px`,
             minWidth: isMobile ? '100%' : '280px',
             maxWidth: isMobile ? '100%' : '600px',
-            borderRadius: 0,
-            borderRight: isMobile ? 'none' : '1px solid var(--color-border-soft)',
-            marginLeft: 0,
-            paddingLeft: 0
+            background: 'var(--color-surface-glass)',
+            backdropFilter: 'blur(28px) saturate(120%)',
+            WebkitBackdropFilter: 'blur(28px) saturate(120%)',
+            borderRight: '2px solid var(--color-border-medium)',
+            boxShadow: 'var(--shadow-sm)'
           }}
         >
-          <div className="px-4 py-4 border-b" style={{ borderColor: 'var(--color-border-soft)' }}>
+          <div className="px-4 py-4 border-b" style={{ borderColor: 'var(--color-border-medium)' }}>
             <h2 className="text-base font-semibold" style={{ 
               color: 'var(--color-text-primary)',
               letterSpacing: '-0.01em' 
@@ -215,7 +216,7 @@ const Dashboard: React.FC = () => {
             />
           </div>
           
-          <div className="px-4 py-4 border-t" style={{ borderColor: 'var(--color-border-soft)' }}>
+          <div className="px-4 py-4 border-t" style={{ borderColor: 'var(--color-border-medium)' }}>
             <ModelSelector selectedModel={selectedModel} onModelChange={setSelectedModel} />
           </div>
         </aside>
@@ -224,7 +225,7 @@ const Dashboard: React.FC = () => {
         {!isMobile && (
           <div
             onMouseDown={handleSidebarMouseDown}
-            className="w-1 hover:w-1.5 bg-gray-300/50 dark:bg-gray-600/50 hover:bg-purple-400 dark:hover:bg-purple-500 cursor-col-resize transition-all flex-shrink-0 relative group"
+            className="w-1 hover:w-1.5 bg-gray-400/60 dark:bg-gray-600/50 hover:bg-purple-400 dark:hover:bg-purple-500 cursor-col-resize transition-all flex-shrink-0 relative group"
             style={{ zIndex: 10 }}
           >
             <div className="absolute inset-y-0 -left-1 -right-1" />
@@ -235,11 +236,14 @@ const Dashboard: React.FC = () => {
         {viewingFile && (
           <>
             <aside 
-              className="glass-card flex flex-col h-full overflow-hidden" 
+              className="flex flex-col h-full overflow-hidden" 
               style={{ 
                 width: isMobile ? '100%' : `${pdfWidth}%`,
-                borderRadius: 0,
-                borderRight: isMobile ? 'none' : '1px solid var(--color-border-soft)'
+                background: 'var(--color-surface-glass)',
+                backdropFilter: 'blur(28px) saturate(120%)',
+                WebkitBackdropFilter: 'blur(28px) saturate(120%)',
+                borderRight: '2px solid var(--color-border-medium)',
+                boxShadow: 'var(--shadow-sm)'
               }}
             >
               <PdfViewer
@@ -254,7 +258,7 @@ const Dashboard: React.FC = () => {
             {!isMobile && (
               <div
                 onMouseDown={handlePdfMouseDown}
-                className="w-1 hover:w-1.5 bg-gray-300/50 dark:bg-gray-600/50 hover:bg-purple-400 dark:hover:bg-purple-500 cursor-col-resize transition-all flex-shrink-0 relative group"
+                className="w-1 hover:w-1.5 bg-gray-400/60 dark:bg-gray-600/50 hover:bg-purple-400 dark:hover:bg-purple-500 cursor-col-resize transition-all flex-shrink-0 relative group"
                 style={{ zIndex: 10 }}
               >
                 <div className="absolute inset-y-0 -left-1 -right-1" />
@@ -265,12 +269,13 @@ const Dashboard: React.FC = () => {
         
         {/* Right - Chat Window */}
         <main 
-          className="glass-card flex flex-col flex-1" 
+          className="flex flex-col flex-1" 
           style={{ 
-            borderRadius: 0,
             minWidth: 0,
-            marginRight: 0,
-            paddingRight: 0
+            background: 'var(--color-surface-glass)',
+            backdropFilter: 'blur(28px) saturate(120%)',
+            WebkitBackdropFilter: 'blur(28px) saturate(120%)',
+            boxShadow: 'var(--shadow-sm)'
           }}
         >
           <CalmChatWindow

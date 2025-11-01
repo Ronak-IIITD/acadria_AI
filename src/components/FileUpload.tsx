@@ -318,10 +318,10 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFilesAdded }) => {
         onDragLeave={handleDragLeave}
         className={`relative border-2 border-dashed rounded-lg text-center transition-all duration-300 ease-in-out group ${
           isUploading
-            ? 'p-4 border-gray-400/50 dark:border-gray-500/50'
+            ? 'p-4 border-gray-400/70 dark:border-gray-500/50'
             : isDragOver 
               ? 'p-6 border-solid border-blue-500 dark:border-blue-400 bg-blue-500/20 scale-105 shadow-xl' 
-              : 'p-6 border-gray-400/50 dark:border-gray-500/50 hover:border-gray-500 dark:hover:border-gray-400'
+              : 'p-6 border-gray-400/70 dark:border-gray-500/50 hover:border-gray-500 dark:hover:border-gray-400'
         }`}
       >
         {isUploading || uploadingFiles.length > 0 ? (
