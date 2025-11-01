@@ -151,7 +151,7 @@ const parsePptxContent = async (base64: string): Promise<string> => {
  * @param maxCharactersPerChunk The maximum number of characters for each chunk.
  * @returns An array of text chunks.
  */
-const chunkText = (text: string, maxCharactersPerChunk: number = 2000): string[] => {
+const chunkText = (text: string, maxCharactersPerChunk: number = 8000): string[] => {
     if (!text) return [];
 
     // Split by paragraphs
@@ -201,6 +201,58 @@ const chunkText = (text: string, maxCharactersPerChunk: number = 2000): string[]
     }
 
     return chunks.filter(c => c.length > 0);
+};
+
+/**
+ * Finds the most relevant chunks based on keyword matching with the question.
+ * @param chunks Array of text chunks.
+ * @param question The user's question.
+ * @param maxChunks Maximum number of chunks to return.
+ * @returns Array of the most relevant chunks with their scores.
+ */
+const findRelevantChunks = (chunks: string[], question: string, maxChunks: number = 6): string[] => {
+    if (chunks.length <= maxChunks) {
+        return chunks;
+    }
+
+    // Extract keywords from the question (simple approach: remove common words)
+    const commonWords = new Set(['what', 'when', 'where', 'who', 'why', 'how', 'is', 'are', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'about', 'as', 'can', 'could', 'would', 'should', 'do', 'does', 'did', 'have', 'has', 'had', 'be', 'been', 'being', 'was', 'were']);
+    const questionWords = question
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .split(/\s+/)
+        .filter(word => word.length > 2 && !commonWords.has(word));
+
+    // Score each chunk based on keyword matches
+    const scoredChunks = chunks.map((chunk, index) => {
+        const chunkLower = chunk.toLowerCase();
+        let score = 0;
+
+        // Count keyword occurrences
+        for (const word of questionWords) {
+            const regex = new RegExp(word, 'gi');
+            const matches = chunkLower.match(regex);
+            if (matches) {
+                score += matches.length * 10;
+            }
+        }
+
+        // Bonus for chunks near the beginning (often contain introductory/key information)
+        if (index < 3) {
+            score += (3 - index) * 5;
+        }
+
+        return { chunk, score, index };
+    });
+
+    // Sort by score (descending) and take top chunks
+    scoredChunks.sort((a, b) => b.score - a.score);
+    
+    // Return the top chunks, but keep them in original document order for context
+    const topChunks = scoredChunks.slice(0, maxChunks);
+    topChunks.sort((a, b) => a.index - b.index);
+    
+    return topChunks.map(item => item.chunk);
 };
 
 // Helper function to format chat history for the summary prompt
@@ -264,12 +316,29 @@ export const getAiSummary = async (
                 return { text: `Sorry, I could not read any content from the document "${file.name}" to summarize.` };
             }
 
+            // For large documents, intelligently truncate to fit within context limits
+            const MAX_SUMMARY_CHARS = 80000; // ~100k tokens for Gemini 2.5 Flash
+            if (textContent.length > MAX_SUMMARY_CHARS) {
+                console.warn(`Document ${file.name} is very large (${textContent.length} chars). Using first ${MAX_SUMMARY_CHARS} characters for summary.`);
+                
+                // Take content from beginning, middle, and end for a comprehensive summary
+                const chunkSize = Math.floor(MAX_SUMMARY_CHARS / 3);
+                const beginning = textContent.substring(0, chunkSize);
+                const middleStart = Math.floor((textContent.length - chunkSize) / 2);
+                const middle = textContent.substring(middleStart, middleStart + chunkSize);
+                const end = textContent.substring(textContent.length - chunkSize);
+                
+                textContent = `${beginning}\n\n[... content omitted for brevity ...]\n\n${middle}\n\n[... content omitted for brevity ...]\n\n${end}`;
+            }
+
             prompt = `
                 You are a helpful assistant. Your task is to provide a comprehensive summary of the following document. 
                 Extract the key topics, main arguments, and important conclusions. 
                 Structure the summary using Markdown with headings, subheadings, and bullet points for clarity.
+                ${textContent.includes('[... content omitted for brevity ...]') ? '\n**Note**: This is a very large document. The summary is based on representative sections from the beginning, middle, and end.' : ''}
 
                 Document Name: ${file.name}
+                Document Size: ${textContent.length} characters
                 ---
                 Document Content:
                 ${textContent}
@@ -311,6 +380,9 @@ export const getAiResponse = async (
     try {
         const contentChunks: string[] = [];
         const unreadableFiles: string[] = [];
+        const MAX_CONTEXT_CHARS = 80000; // Increased limit for Gemini 2.5 Flash (~100k tokens)
+        const MAX_CHUNKS_PER_FILE = 6; // Limit chunks per file to prevent overwhelming context
+        let totalContextSize = 0;
 
         for (const file of contextFiles) {
             let textContent: string | null = null;
@@ -327,21 +399,46 @@ export const getAiResponse = async (
             }
             
             if (textContent && textContent.trim()) {
-                const chunks = chunkText(textContent);
-                if (chunks.length > 0) {
-                    chunks.forEach((chunk, index) => {
-                        contentChunks.push(`### Document: ${file.name} (Part ${index + 1} of ${chunks.length}) ###\n\n${chunk}`);
-                    });
-                } else { unreadableFiles.push(file.name); }
-            } else { unreadableFiles.push(file.name); }
+                const allChunks = chunkText(textContent);
+                if (allChunks.length > 0) {
+                    // For large files, select only the most relevant chunks
+                    const relevantChunks = findRelevantChunks(allChunks, question, MAX_CHUNKS_PER_FILE);
+                    
+                    let fileContextAdded = false;
+                    for (let i = 0; i < relevantChunks.length; i++) {
+                        const chunk = relevantChunks[i];
+                        const chunkWithHeader = `### Document: ${file.name} (Part ${i + 1} of ${relevantChunks.length}) ###\n\n${chunk}`;
+                        
+                        // Check if adding this chunk would exceed the context limit
+                        if (totalContextSize + chunkWithHeader.length > MAX_CONTEXT_CHARS) {
+                            console.warn(`Context limit reached. Skipping remaining chunks from ${file.name}`);
+                            break;
+                        }
+                        
+                        contentChunks.push(chunkWithHeader);
+                        totalContextSize += chunkWithHeader.length;
+                        fileContextAdded = true;
+                    }
+                    
+                    if (!fileContextAdded) {
+                        unreadableFiles.push(file.name);
+                    }
+                } else { 
+                    unreadableFiles.push(file.name); 
+                }
+            } else { 
+                unreadableFiles.push(file.name); 
+            }
         }
 
         if (contentChunks.length === 0 && contextFiles.length > 0 && !performWebSearch) {
-            const message = `Sorry, I could not read the content from the uploaded documents: ${unreadableFiles.join(', ')}. Please try other files. Currently, I can process .txt, .pdf, and .docx files.`;
+            const message = `Sorry, I could not read the content from the uploaded documents: ${unreadableFiles.join(', ')}. Please try other files. Currently, I can process .txt, .pdf, .docx, .pptx, .md, and .rtf files.`;
             return { text: message, suggestions: [], sources: [] };
         }
 
         const context = contentChunks.join('\n\n---\n\n');
+        
+        console.log(`Context size: ${totalContextSize} characters, ${contentChunks.length} chunks from ${contextFiles.length} file(s)`);
         
         let prompt: string;
         const modelConfig: { model: string, contents: string, config?: any } = {
@@ -378,29 +475,30 @@ export const getAiResponse = async (
             };
         } else {
             prompt = `
-                You are a highly specialized AI assistant for StudySync. Your SOLE purpose is to answer questions based *only* on the text provided in the "Provided Context" section. You are a tool for information retrieval from a closed set of documents.
+                You are a highly specialized AI assistant for StudySync. Your SOLE purpose is to answer questions based *only* on the text provided in the "Provided Context" section.
 
                 **ABSOLUTE RULES:**
                 1.  You MUST base your entire answer **exclusively** on the information found within the "Provided Context".
-                2.  If the "Provided Context" does not contain the information needed to answer the question, you MUST respond with the exact phrase: "I could not find an answer to your question in the uploaded documents."
-                3.  **DO NOT** under any circumstances use any external knowledge, information from the internet, personal opinions, or make inferences that are not directly supported by the text. It is a severe violation of your instructions to invent information or answer from memory.
-                4.  When you find an answer, you MUST cite the source document(s) by name within your response (e.g., "According to 'Biology_Chapter_5.pdf', ..."). The document names are provided in the context headings. This is crucial for user trust and transparency.
+                2.  If the "Provided Context" does not contain the information needed to answer the question, you MUST respond with: "I could not find an answer to your question in the uploaded documents. Try rephrasing your question or check if the relevant content is in your documents."
+                3.  **DO NOT** use any external knowledge or make inferences not directly supported by the text.
+                4.  When you find an answer, cite the source document(s) by name (e.g., "According to 'Biology_Chapter_5.pdf', ...").
                 5.  Format your answers clearly using Markdown. For math, use LaTeX syntax ($...$ for inline, $$...$$ for block).
+                6.  **Important**: The context provided may be excerpts from larger documents. Focus on answering based on what is available. If the answer requires information not present in the excerpts, acknowledge this limitation.
 
-                **After providing your answer, list the primary source documents you used in a special block like this, with each source on a new line:**
+                **After providing your answer, list the primary source documents you used in a special block:**
                 <SOURCES>
                 Document_Name_1.pdf
                 Document_Name_2.txt
                 </SOURCES>
 
-                **After providing your answer, suggest up to 3 relevant follow-up questions the user might have. Enclose these suggestions in a special block like this, with each suggestion on a new line:**
+                **After providing your answer, suggest up to 3 relevant follow-up questions:**
                 <SUGGESTIONS>
                 What is the next step in the process?
                 Can you explain that in simpler terms?
                 How does this relate to Topic X?
                 </SUGGESTIONS>
 
-                **Provided Context:**
+                **Provided Context (${contentChunks.length} relevant sections):**
                 ${context || "No documents provided. You must inform the user that they need to upload documents before you can answer any questions."}
                 
                 **User's Question:** ${question}
