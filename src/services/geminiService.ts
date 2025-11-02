@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import type { StudyFile, ChatMessage } from '../types';
 import * as pdfjsLib from 'pdfjs-dist/build/pdf.mjs';
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { normalizeAIOutput } from '../utils/mathNormalize';
 
 // Add Mammoth.js type declaration for global script
 declare const mammoth: any;
@@ -353,7 +354,8 @@ export const getAiSummary = async (
             contents: prompt,
         });
         
-        const summaryText = `${summaryTitle}\n\n${response.text}`;
+        let summaryText = `${summaryTitle}\n\n${response.text}`;
+        summaryText = normalizeAIOutput(summaryText);
 
         return { text: summaryText };
 
@@ -449,12 +451,50 @@ export const getAiResponse = async (
         if (performWebSearch) {
             prompt = `
                 You are StudySync AI, a helpful and versatile assistant for students.
+                
+                **CRITICAL MATH FORMATTING - FOLLOW EXACTLY:**
+                
+                🚨 RULE #1: ALL math equations MUST be wrapped in <mb>LaTeX</mb> tags
+                🚨 RULE #2: NEVER write raw LaTeX commands like \\int, \\frac, \\mb outside tags
+                🚨 RULE #3: Write each equation ONLY ONCE - no plain text versions
+                
+                ✅ CORRECT FORMAT:
+                <mb>\\int x^{2} dx = \\frac{x^{3}}{3} + C</mb>
+                
+                <mb>\\int \\frac{dx}{1-x^{2}} = \\sin^{-1}(x) + C</mb>
+                
+                ❌ WRONG (what you're currently doing):
+                *$\\mb{\\frac{d}{dx} \\left[ \\int f(x) dx \\right] = f(x)</mb>
+                
+                ❌ NEVER DO THIS:
+                • <m>\\mb{\\int k f(x) dx = k \\int f(x) dx}</m>, where <m>kisaconstant.</m>
+                
+                **EXAMPLES OF PERFECT OUTPUT:**
+                
+                1. Properties of Indefinite Integration:
+                
+                • <mb>\\frac{d}{dx} \\left[ \\int f(x) dx \\right] = f(x)</mb>
+                
+                • <mb>\\int k f(x) dx = k \\int f(x) dx</mb> (where k is a constant)
+                
+                • <mb>\\int [f_1(x) \\pm f_2(x) \\pm \\ldots] dx = \\int f_1(x) dx \\pm \\int f_2(x) dx \\pm \\ldots</mb>
+                
+                2. Standard Formulas:
+                
+                • <mb>\\int x^{n} dx = \\frac{x^{n+1}}{n+1} + C</mb> (for n ≠ -1)
+                
+                • <mb>\\int e^{x} dx = e^{x} + C</mb>
+                
+                • <mb>\\int \\sin x dx = -\\cos x + C</mb>
+                
+                **Remember:** Clean, wrapped equations ONLY. No raw backslashes in text!
+                
                 **Instructions:**
                 1. You have been asked to perform a web search to answer the user's question.
                 2. Use the provided search results to formulate a comprehensive answer. You MUST cite your web sources using numbered annotations like [1], [2], etc., directly in the text where the information is used. These numbers will correspond to the list of sources appended to your answer.
                 3. If "Provided Context from Documents" is available, you may use it for supplementary information, but prioritize web search results. If you use information from a document, you MUST cite it by its full name (e.g., "(from 'My_Lecture_Notes.pdf')").
                 4. Format your answers clearly using Markdown (e.g., lists, bolding, italics) for better readability.
-                5. For mathematical equations and formulas, use LaTeX syntax. Use $$...$$ for block-level equations and $...$ for inline equations.
+                5. Always explain steps clearly for students.
 
                 **After providing your answer, suggest up to 3 relevant follow-up questions the user might have. Enclose these suggestions in a special block like this, with each suggestion on a new line:**
                 <SUGGESTIONS>
@@ -475,15 +515,53 @@ export const getAiResponse = async (
             };
         } else {
             prompt = `
-                You are a highly specialized AI assistant for StudySync. Your SOLE purpose is to answer questions based *only* on the text provided in the "Provided Context" section.
+                You are StudySync AI, a specialized assistant for students. Your SOLE purpose is to answer questions based *only* on the text provided in the "Provided Context" section.
+
+                **CRITICAL MATH FORMATTING - FOLLOW EXACTLY:**
+                
+                🚨 RULE #1: ALL math equations MUST be wrapped in <mb>LaTeX</mb> tags
+                🚨 RULE #2: NEVER write raw LaTeX commands like \\int, \\frac, \\mb outside tags
+                🚨 RULE #3: Write each equation ONLY ONCE - no plain text versions
+                
+                ✅ CORRECT FORMAT:
+                <mb>\\int x^{2} dx = \\frac{x^{3}}{3} + C</mb>
+                
+                <mb>\\int \\frac{dx}{1-x^{2}} = \\sin^{-1}(x) + C</mb>
+                
+                ❌ WRONG (what you're currently doing):
+                *$\\mb{\\frac{d}{dx} \\left[ \\int f(x) dx \\right] = f(x)</mb>
+                
+                ❌ NEVER DO THIS:
+                • <m>\\mb{\\int k f(x) dx = k \\int f(x) dx}</m>, where <m>kisaconstant.</m>
+                
+                **EXAMPLES OF PERFECT OUTPUT:**
+                
+                1. Properties of Indefinite Integration:
+                
+                • <mb>\\frac{d}{dx} \\left[ \\int f(x) dx \\right] = f(x)</mb>
+                
+                • <mb>\\int k f(x) dx = k \\int f(x) dx</mb> (where k is a constant)
+                
+                • <mb>\\int [f_1(x) \\pm f_2(x) \\pm \\ldots] dx = \\int f_1(x) dx \\pm \\int f_2(x) dx \\pm \\ldots</mb>
+                
+                2. Standard Formulas:
+                
+                • <mb>\\int x^{n} dx = \\frac{x^{n+1}}{n+1} + C</mb> (for n ≠ -1)
+                
+                • <mb>\\int e^{x} dx = e^{x} + C</mb>
+                
+                • <mb>\\int \\sin x dx = -\\cos x + C</mb>
+                
+                **Remember:** Clean, wrapped equations ONLY. No raw backslashes in text!
 
                 **ABSOLUTE RULES:**
                 1.  You MUST base your entire answer **exclusively** on the information found within the "Provided Context".
                 2.  If the "Provided Context" does not contain the information needed to answer the question, you MUST respond with: "I could not find an answer to your question in the uploaded documents. Try rephrasing your question or check if the relevant content is in your documents."
                 3.  **DO NOT** use any external knowledge or make inferences not directly supported by the text.
                 4.  When you find an answer, cite the source document(s) by name (e.g., "According to 'Biology_Chapter_5.pdf', ...").
-                5.  Format your answers clearly using Markdown. For math, use LaTeX syntax ($...$ for inline, $$...$$ for block).
-                6.  **Important**: The context provided may be excerpts from larger documents. Focus on answering based on what is available. If the answer requires information not present in the excerpts, acknowledge this limitation.
+                5.  Format your answers clearly using Markdown.
+                6.  Always explain steps clearly for students.
+                7.  **Important**: The context provided may be excerpts from larger documents. Focus on answering based on what is available. If the answer requires information not present in the excerpts, acknowledge this limitation.
 
                 **After providing your answer, list the primary source documents you used in a special block:**
                 <SOURCES>
@@ -560,6 +638,9 @@ export const getAiResponse = async (
             aiResponseText += unreadableNote;
         }
 
+        // Apply math normalization
+        aiResponseText = normalizeAIOutput(aiResponseText);
+
         return { text: aiResponseText, suggestions, sources };
 
     } catch (error) {
@@ -595,6 +676,12 @@ ${documentContent}
 3. Vary difficulty levels (some easy recall, some deeper understanding)
 4. Focus on key concepts, definitions, processes, and relationships
 5. Make questions specific and unambiguous
+
+**Math Formatting:**
+If your flashcards contain mathematical expressions, wrap them in tags with proper LaTeX:
+- Inline math: <m>\\frac{x^{2}}{2}</m>
+- Block equations: <mb>\\int_{0}^{1} x^{2} \\, dx = \\frac{1}{3}</mb>
+- Use \\frac{}{} for fractions, \\sqrt{} for roots, ^{} for exponents
 
 **Format your response as a JSON array:**
 [
@@ -633,8 +720,8 @@ Return ONLY the JSON array, no additional text or markdown code blocks.`;
         }
         
         return flashcardData.map((data: any) => ({
-            front: data.front || '',
-            back: data.back || '',
+            front: normalizeAIOutput(data.front || ''),
+            back: normalizeAIOutput(data.back || ''),
             tags: data.tags || [],
         }));
     } catch (error) {

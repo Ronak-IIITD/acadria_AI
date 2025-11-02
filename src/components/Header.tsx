@@ -26,11 +26,11 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, onLoginClick, isScrolle
             <div
               className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors"
               style={{ 
-                background: 'linear-gradient(135deg, #35d0c3 0%, #8b93d4 100%)',
-                opacity: 0.9
+                background: 'rgba(53, 208, 195, 0.15)',
+                backdropFilter: 'blur(8px)'
               }}
             >
-              <AIBookIcon className="h-5 w-5 text-white" />
+              <AIBookIcon className="h-5 w-5" style={{ color: '#35d0c3' }} />
             </div>
             <h1 className="text-base brand-word" style={{ color: 'var(--color-text-primary)' }}>
               StudySync <span className="brand-ai">AI</span>

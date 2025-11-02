@@ -89,31 +89,68 @@ const FileList: React.FC<FileListProps> = ({
         {/* Filter Input */}
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <SearchIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+            <SearchIcon className="h-5 w-5 text-gray-400 dark:text-gray-400" />
           </div>
           <input
             type="text"
             value={filterQuery}
             onChange={(e) => setFilterQuery(e.target.value)}
             placeholder={`Search ${files.length} document${files.length === 1 ? '' : 's'}...`}
-            className="w-full bg-white/70 dark:bg-black/40 border border-gray-400/50 dark:border-gray-500/50 rounded-lg py-2 pl-10 pr-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 dark:text-gray-100 placeholder:text-gray-600 dark:placeholder:text-gray-400 transition-all shadow-sm"
+            aria-label="Search documents"
+            style={{
+              width: '100%',
+              background: 'var(--color-bg-elevated)',
+              border: '1.5px solid var(--color-border-medium)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '0.5rem 1rem 0.5rem 2.5rem',
+              boxShadow: 'var(--shadow-sm)',
+              color: 'var(--color-text-primary)',
+              fontSize: '0.9375rem',
+              transition: 'all var(--transition-base)'
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = 'var(--color-accent-primary)';
+              e.target.style.boxShadow = 'var(--shadow-md), 0 0 0 3px var(--color-accent-primary-soft)';
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = 'var(--color-border-medium)';
+              e.target.style.boxShadow = 'var(--shadow-sm)';
+            }}
           />
         </div>
         
         {/* Sort Controls */}
-        <div className="flex items-center justify-between text-xs font-medium text-gray-600 dark:text-gray-400 px-1">
+        <div className="flex items-center justify-between text-xs font-medium px-1" style={{ color: 'var(--color-text-secondary)' }}>
           <span className="font-semibold">Sort by:</span>
           <div className="flex items-center space-x-1 sm:space-x-2">
             {(['name', 'size', 'type'] as const).map(key => (
               <button
                 key={key}
                 onClick={() => handleSort(key)}
-                className={`flex items-center px-2 py-1 rounded-md transition-colors ${
-                  sortKey === key
-                    ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300'
-                    : 'hover:bg-gray-200/50 dark:hover:bg-gray-700/50'
-                }`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: 'var(--radius-sm)',
+                  border: 'none',
+                  transition: 'all var(--transition-base)',
+                  background: sortKey === key ? '#3B82F6' : 'var(--color-bg-elevated)',
+                  color: sortKey === key ? 'white' : 'var(--color-text-secondary)',
+                  boxShadow: 'var(--shadow-xs)',
+                  cursor: 'pointer'
+                }}
                 aria-label={`Sort by ${key}`}
+                aria-pressed={sortKey === key}
+                onMouseEnter={(e) => {
+                  if (sortKey !== key) {
+                    e.currentTarget.style.background = 'var(--color-bg-hover)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (sortKey !== key) {
+                    e.currentTarget.style.background = 'var(--color-bg-elevated)';
+                  }
+                }}
               >
                 <span className="capitalize">{key}</span>
                 {sortKey === key && <SortIcon className="h-4 w-4 ml-1" direction={sortOrder} />}
@@ -127,18 +164,43 @@ const FileList: React.FC<FileListProps> = ({
           {processedFiles.map(file => (
             <li
               key={file.id}
-              className="bg-white/60 dark:bg-black/25 p-3 rounded-lg flex items-center justify-between transition-all duration-300 hover:bg-white/80 dark:hover:bg-black/40 hover:shadow-md hover:-translate-y-0.5 animate-fade-in-up group"
+              style={{
+                background: 'var(--color-bg-elevated)',
+                padding: '0.75rem',
+                borderRadius: 'var(--radius-lg)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                transition: 'all 0.3s ease',
+                border: '1px solid var(--color-border-medium)',
+                boxShadow: 'var(--shadow-xs)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--color-bg-hover)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--color-bg-elevated)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-xs)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+              className="group animate-fade-in-up"
             >
               <div className="flex items-center min-w-0 flex-1">
-                <FileIcon type={file.type} className="h-6 w-6 text-gray-600 dark:text-gray-300 flex-shrink-0" />
-                <div className="ml-3 min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate" title={file.name}>{file.name}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                <div style={{ height: '1.5rem', width: '1.5rem', flexShrink: 0, color: 'var(--color-text-secondary)' }}>
+                  <FileIcon type={file.type} className="h-6 w-6" />
+                </div>
+                <div style={{ marginLeft: '0.75rem', minWidth: 0, flex: 1 }}>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={file.name}>{file.name}</p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>
                     {file.type} - {formatBytes(file.size)}
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+              {/* Action buttons are always visible on small screens for touch accessibility,
+                 and reveal on hover/focus for md+ screens to reduce visual noise. */}
+              <div className="flex items-center gap-2 flex-shrink-0 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
                 {/* Flashcard Badge - Always visible if cards exist */}
                 {flashcardCounts[file.id] > 0 && (
                   <div className="opacity-100 flex items-center gap-1 bg-purple-100 dark:bg-purple-900/40 px-2 py-1 rounded-full">

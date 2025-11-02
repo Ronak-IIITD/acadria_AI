@@ -23,7 +23,10 @@ const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ id, checked, onChange, labe
         <div className={`block w-10 h-6 rounded-full transition-colors ${checked ? 'bg-purple-600' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
         <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${checked ? 'translate-x-4' : 'translate-x-0'}`}></div>
       </div>
-      <div className="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+      <div 
+        className="ml-3 text-sm font-medium"
+        style={{ color: 'var(--color-text-primary)' }}
+      >
         {label}
       </div>
     </label>

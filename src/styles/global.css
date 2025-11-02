@@ -428,25 +428,37 @@ html.dark .chat-avatar {
 
 .chat-bubble {
   max-width: 65%;
-  padding: var(--space-lg) var(--space-xl);
+  padding: var(--space-md) var(--space-lg);
   border-radius: var(--radius-xl);
   font-size: 0.9375rem;
-  line-height: var(--line-height-relaxed);
+  line-height: var(--line-height-normal);
   letter-spacing: 0.01em;
-  box-shadow: var(--shadow-xs);
   transition: box-shadow var(--transition-base), transform var(--transition-base);
 }
 
 .chat-bubble:hover {
-  box-shadow: var(--shadow-sm);
   transform: translateY(-1px);
 }
 
 .chat-bubble-user {
-  background: linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-lavender));
-  color: var(--color-text-inverse);
-  border-bottom-right-radius: var(--radius-sm);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-lg);
   margin-left: auto;
+  border: 1.5px solid var(--color-border-medium);
+  box-shadow: var(--shadow-xs);
+  padding: 0.625rem 1rem;
+  max-width: 80%;
+  min-width: 120px;
+}
+
+.chat-bubble-user:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+html.dark .chat-bubble-user {
+  background: var(--color-bg-elevated);
+  border-color: var(--color-border-medium);
 }
 
 .chat-bubble-ai {

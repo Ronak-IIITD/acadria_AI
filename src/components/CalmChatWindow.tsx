@@ -3,7 +3,7 @@ import type { AiModel, ChatMessage, StudyFile } from '../types';
 import SendIcon from './icons/SendIcon';
 import SparklesIcon from './icons/SparklesIcon';
 import { getAiResponse, getAiSummary } from '../services/geminiService';
-import AIBookIcon from './icons/AIBookIcon';
+import AIAvatarIcon from './icons/AIAvatarIcon';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -19,6 +19,7 @@ import ToggleSwitch from './ToggleSwitch';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import CodeCanvas from './CodeCanvas';
 
 interface ChatWindowProps {
   files: StudyFile[];
@@ -55,7 +56,7 @@ const WelcomeState: React.FC = () => (
       background: 'linear-gradient(135deg, rgba(53, 208, 195, 0.15) 0%, rgba(139, 147, 212, 0.15) 100%)',
       backdropFilter: 'blur(8px)'
     }}>
-      <AIBookIcon className="h-10 w-10" style={{ color: 'var(--color-text-primary)' }} />
+      <AIAvatarIcon className="h-10 w-10" />
     </div>
     
     {/* Heading */}
@@ -407,19 +408,47 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
   const markdownComponents = {
     code({ node, inline, className, children, ...props }: any) {
       const match = /language-(\w+)/.exec(className || '');
-      return !inline && match ? (
-        <SyntaxHighlighter
-          style={theme === 'dark' ? vscDarkPlus : oneLight}
-          language={match[1]}
-          PreTag="pre"
-          {...props}
-        >
-          {String(children).replace(/\n$/, '')}
-        </SyntaxHighlighter>
-      ) : (
+      const code = String(children).replace(/\n$/, '');
+      
+      // Use CodeCanvas for block code
+      if (!inline && match) {
+        return (
+          <CodeCanvas 
+            code={code}
+            language={match[1]}
+          />
+        );
+      }
+      
+      // Use inline code for inline snippets
+      return (
         <code className={className} {...props}>
           {children}
         </code>
+      );
+    },
+    li({ node, children, ...props }: any) {
+      // Add better spacing for list items containing math
+      return (
+        <li className="my-2 leading-relaxed" {...props}>
+          {children}
+        </li>
+      );
+    },
+    ul({ node, children, ...props }: any) {
+      // Add spacing around unordered lists
+      return (
+        <ul className="space-y-1 my-3" {...props}>
+          {children}
+        </ul>
+      );
+    },
+    ol({ node, children, ...props }: any) {
+      // Add spacing around ordered lists
+      return (
+        <ol className="space-y-1 my-3" {...props}>
+          {children}
+        </ol>
       );
     },
   };
@@ -493,7 +522,7 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
             >
               {msg.sender === 'ai' && (
                 <div className="chat-avatar">
-                  <AIBookIcon className="h-5 w-5" style={{ color: 'var(--color-text-tertiary)' }} />
+                  <AIAvatarIcon className="h-5 w-5" />
                 </div>
               )}
               <div className={`flex flex-col gap-3 ${msg.sender === 'ai' ? 'flex-1 min-w-0' : ''}`}>
@@ -568,6 +597,17 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
 
       {/* Input Area */}
       <div className="space-y-3 px-6">
+        {/* Web Search Toggle */}
+        <div className="flex items-center justify-end px-2">
+          <ToggleSwitch
+            id="web-search-toggle"
+            checked={useWebSearch}
+            onChange={setUseWebSearch}
+            label="Web Search"
+            disabled={isLoading}
+          />
+        </div>
+
         <div className="relative flex items-center">
           <textarea
             ref={textareaRef}
@@ -609,7 +649,10 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
           </button>
         </div>
         <p className="text-xs text-center" style={{ color: 'var(--color-text-tertiary)' }}>
-          AI responses are based on your uploaded documents
+          {useWebSearch 
+            ? 'Web search enabled - AI will search the internet for answers'
+            : 'AI responses are based on your uploaded documents'
+          }
         </p>
       </div>
 
