@@ -4,10 +4,7 @@ import SendIcon from './icons/SendIcon';
 import SparklesIcon from './icons/SparklesIcon';
 import { getAiResponse, getAiSummary } from '../services/geminiService';
 import AIAvatarIcon from './icons/AIAvatarIcon';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
+import AiMessageRenderer from './AiMessageRenderer';
 import SearchIcon from './icons/SearchIcon';
 import CloseIcon from './icons/CloseIcon';
 import SummarizeIcon from './icons/SummarizeIcon';
@@ -301,12 +298,19 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
     setMessages(prev => [...prev, typingIndicator]);
 
     try {
+      console.log('📤 [CalmChat] Sending question to AI:', textToSend);
       const performWebSearch = useWebSearch;
-      const { text: aiResponseText, suggestions: followUpSuggestions, sources } = await getAiResponse(textToSend, files, performWebSearch);
+      const { blocks, suggestions: followUpSuggestions, sources } = await getAiResponse(textToSend, files, performWebSearch);
+      
+      console.log('📥 [CalmChat] Received response:', { blocks, followUpSuggestions, sources });
+      if (!blocks || blocks.length === 0) {
+        console.warn('⚠️ [CalmChat] Received empty blocks array!');
+      }
       
       const aiMessage: ChatMessage = {
         id: `ai-${Date.now()}`,
-        text: aiResponseText,
+        text: '', // Legacy field, kept for compatibility
+        blocks: blocks,
         sender: 'ai',
         timestamp: Date.now(),
         followUpSuggestions,
@@ -319,6 +323,7 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
       const errorMessage: ChatMessage = {
         id: `ai-error-${Date.now()}`,
         text: "I'm having trouble connecting right now. Please try again in a moment.",
+        blocks: [{ type: 'text', value: "I'm having trouble connecting right now. Please try again in a moment." }],
         sender: 'ai',
         timestamp: Date.now(),
       };
@@ -364,11 +369,12 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
     setMessages(prev => [...prev, typingIndicator]);
 
     try {
-      const { text: summaryText } = await getAiSummary(type, contentToSummarize);
+      const { blocks } = await getAiSummary(type, contentToSummarize);
       
       const aiMessage: ChatMessage = {
         id: `ai-summary-${Date.now()}`,
-        text: summaryText,
+        text: '', // Legacy field
+        blocks: blocks,
         sender: 'ai',
         timestamp: Date.now(),
       };
@@ -379,6 +385,7 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
       const errorMessage: ChatMessage = {
         id: `ai-error-${Date.now()}`,
         text: "Sorry, I couldn't generate the summary. Please try again.",
+        blocks: [{ type: 'text', value: "Sorry, I couldn't generate the summary. Please try again." }],
         sender: 'ai',
         timestamp: Date.now(),
       };
@@ -535,13 +542,11 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
                     </div>
                   ) : msg.sender === 'ai' ? (
                     <div className="markdown-content">
-                      <ReactMarkdown 
-                        components={markdownComponents}
-                        remarkPlugins={[remarkGfm, remarkMath]}
-                        rehypePlugins={[rehypeKatex]}
-                      >
-                        {msg.text}
-                      </ReactMarkdown>
+                      {msg.blocks && msg.blocks.length > 0 ? (
+                        <AiMessageRenderer blocks={msg.blocks} />
+                      ) : (
+                        <p className="text-gray-500 dark:text-gray-400">No response generated</p>
+                      )}
                     </div>
                   ) : (
                     <p className="whitespace-pre-wrap">{msg.text}</p>

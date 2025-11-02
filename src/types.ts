@@ -1,5 +1,7 @@
 
 
+
+
 export interface User {
   name: string;
   email: string;
@@ -13,9 +15,15 @@ export interface StudyFile {
   content: string; // Base64 content for simplicity in this MVP
 }
 
+export interface ContentBlock {
+  type: 'text' | 'math';
+  value: string;
+}
+
 export interface ChatMessage {
   id: string;
-  text: string;
+  text: string; // Deprecated: use blocks instead
+  blocks?: ContentBlock[]; // NEW: Structured content blocks
   sender: 'user' | 'ai';
   timestamp: number;
   isTyping?: boolean;

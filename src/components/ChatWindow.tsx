@@ -1,12 +1,9 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useContext } from 'react';
-import type { AiModel, ChatMessage, StudyFile } from '../types';
+import type { AiModel, ChatMessage, StudyFile, ContentBlock } from '../types';
 import SendIcon from './icons/SendIcon';
 import { getAiResponse, getAiSummary } from '../services/geminiService';
 import AIBookIcon from './icons/AIBookIcon';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
+import AiMessageRenderer from './AiMessageRenderer';
 import SearchIcon from './icons/SearchIcon';
 import CloseIcon from './icons/CloseIcon';
 import SummarizeIcon from './icons/SummarizeIcon';
@@ -18,8 +15,6 @@ import MicrophoneIcon from './icons/MicrophoneIcon';
 import StopCircleIcon from './icons/StopCircleIcon';
 import ToggleSwitch from './ToggleSwitch';
 import { ThemeContext } from '../contexts/ThemeContext';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 
 interface ChatWindowProps {
@@ -279,17 +274,26 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQuest
     try {
         const performWebSearch = useWebSearch;
 
-        const { text: aiResponseText, suggestions: followUpSuggestions, sources } = await getAiResponse(textToSend, files, performWebSearch);
+        console.log('📤 Sending question to AI:', textToSend);
+        const { blocks, suggestions: followUpSuggestions, sources } = await getAiResponse(textToSend, files, performWebSearch);
+        
+        console.log('📥 Received response:', { blocks, suggestions: followUpSuggestions, sources });
+        
+        if (!blocks || blocks.length === 0) {
+            console.warn('⚠️  Received empty blocks array!');
+        }
         
         const aiMessage: ChatMessage = {
             id: `ai-${Date.now()}`,
-            text: aiResponseText,
+            text: '', // Keep for backward compatibility
+            blocks: blocks, // NEW: Structured blocks
             sender: 'ai',
             timestamp: Date.now(),
             followUpSuggestions,
             sources,
         };
 
+        console.log('💬 Creating AI message:', aiMessage);
         setMessages(prev => prev.filter(m => !m.isTyping).concat(aiMessage));
 
     } catch (error) {
@@ -406,25 +410,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQuest
     target.style.height = `${target.scrollHeight}px`;
   };
 
-  const markdownComponents = {
-    code({ node, inline, className, children, ...props }: any) {
-        const match = /language-(\w+)/.exec(className || '');
-        return !inline && match ? (
-            <SyntaxHighlighter
-                style={theme === 'dark' ? vscDarkPlus : oneLight}
-                language={match[1]}
-                PreTag="pre"
-                {...props}
-            >
-                {String(children).replace(/\n$/, '')}
-            </SyntaxHighlighter>
-        ) : (
-            <code className={className} {...props}>
-                {children}
-            </code>
-        );
-    },
-  };
+  // Removed markdownComponents - no longer needed with AiMessageRenderer
 
   const placeholderText = files.length > 0
     ? useWebSearch
@@ -494,15 +480,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQuest
                     </div>
                     ) : (
                     msg.sender === 'ai' ? (
-                        <div className="markdown-content text-sm leading-relaxed" style={{ lineHeight: '1.7' }}>
-                            <ReactMarkdown 
-                                components={markdownComponents}
-                                remarkPlugins={[remarkGfm, remarkMath]}
-                                rehypePlugins={[rehypeKatex]}
-                            >
-                                {msg.text}
-                            </ReactMarkdown>
-                        </div>
+                        msg.blocks && msg.blocks.length > 0 ? (
+                            <AiMessageRenderer blocks={msg.blocks} />
+                        ) : (
+                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                        )
                     ) : (
                         <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.text}</p>
                     )

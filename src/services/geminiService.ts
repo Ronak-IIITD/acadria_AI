@@ -1,8 +1,10 @@
 import { GoogleGenAI } from "@google/genai";
-import type { StudyFile, ChatMessage } from '../types';
+import type { StudyFile, ChatMessage, ContentBlock } from '../types';
 import * as pdfjsLib from 'pdfjs-dist/build/pdf.mjs';
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { normalizeAIOutput } from '../utils/mathNormalize';
+
+// REMOVED: import { normalizeAIOutput } from '../utils/mathNormalize';
+// Server-side now handles all normalization
 
 // Add Mammoth.js type declaration for global script
 declare const mammoth: any;
@@ -267,10 +269,10 @@ const formatChatHistory = (messages: ChatMessage[]): string => {
 export const getAiSummary = async (
     type: 'chat' | 'document',
     content: ChatMessage[] | StudyFile
-): Promise<{ text: string }> => {
-    if (!process.env.API_KEY || process.env.API_KEY === 'placeholder-key') {
+): Promise<{ blocks: ContentBlock[] }> => {
+    if (!API_KEY || API_KEY === 'placeholder-key') {
         return Promise.resolve({ 
-            text: "This is a mock summary as the API key is not configured."
+            blocks: [{ type: 'text', value: "This is a mock summary as the API key is not configured." }]
         });
     }
 
@@ -281,7 +283,7 @@ export const getAiSummary = async (
         if (type === 'chat') {
             const chatHistory = formatChatHistory(content as ChatMessage[]);
             if (!chatHistory) {
-                return { text: "There is no chat history to summarize." };
+                return { blocks: [{ type: 'text', value: "There is no chat history to summarize." }] };
             }
             summaryTitle = '### Summary of Chat History';
             prompt = `
@@ -314,7 +316,7 @@ export const getAiSummary = async (
             }
 
             if (!textContent || !textContent.trim()) {
-                return { text: `Sorry, I could not read any content from the document "${file.name}" to summarize.` };
+                return { blocks: [{ type: 'text', value: `Sorry, I could not read any content from the document "${file.name}" to summarize.` }] };
             }
 
             // For large documents, intelligently truncate to fit within context limits
@@ -354,14 +356,13 @@ export const getAiSummary = async (
             contents: prompt,
         });
         
-        let summaryText = `${summaryTitle}\n\n${response.text}`;
-        summaryText = normalizeAIOutput(summaryText);
-
-        return { text: summaryText };
+        // Return as structured blocks (plain text summary)
+        const summaryText = `${summaryTitle}\n\n${response.text}`;
+        return { blocks: [{ type: 'text', value: summaryText }] };
 
     } catch (error) {
         console.error("Error getting AI summary:", error);
-        return { text: "Sorry, I encountered an error while trying to generate the summary." };
+        return { blocks: [{ type: 'text', value: "Sorry, I encountered an error while trying to generate the summary." }] };
     }
 };
 
@@ -370,20 +371,63 @@ export const getAiResponse = async (
     question: string, 
     contextFiles: StudyFile[], 
     performWebSearch: boolean
-): Promise<{ text: string, suggestions: { displayText: string; query: string }[], sources: string[] }> => {
-    if (!process.env.API_KEY || process.env.API_KEY === 'placeholder-key') {
+): Promise<{ blocks: ContentBlock[], suggestions: { displayText: string; query: string }[], sources: string[] }> => {
+    // Check if backend API is available
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+    
+    try {
+        // Try to use backend API first
+        const response = await fetch(`${BACKEND_URL}/api/chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                text: question,
+                use_web_search: performWebSearch
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Received structured response from backend:', data);
+            
+            // Backend returns { blocks, suggestions, sources }
+            return {
+                blocks: data.blocks || [],
+                suggestions: data.suggestions || [],
+                sources: data.sources || []
+            };
+        } else {
+            console.warn('⚠️  Backend API failed, falling back to frontend processing');
+        }
+    } catch (error) {
+        console.warn('⚠️  Backend API not available, using frontend fallback:', error);
+    }
+
+    // Fallback to frontend processing (keep existing logic for now)
+    // This uses the old text-based approach
+    if (!API_KEY || API_KEY === 'placeholder-key') {
+        console.error('❌ API KEY NOT CONFIGURED! Set VITE_API_KEY in .env file');
         return Promise.resolve({ 
-            text: "This is a mock response as the API key is not configured. Please set the API_KEY environment variable to get real AI-powered answers.",
+            blocks: [
+                {
+                    type: 'text' as const,
+                    value: "⚠️ API key is not configured. Please set VITE_API_KEY in your .env file. Get your key at https://makersuite.google.com/app/apikey"
+                }
+            ],
             suggestions: [],
             sources: [],
         });
     }
     
+    console.log('🔑 Using API key for frontend fallback (first 10 chars):', API_KEY.substring(0, 10) + '...');
+    
     try {
         const contentChunks: string[] = [];
         const unreadableFiles: string[] = [];
-        const MAX_CONTEXT_CHARS = 80000; // Increased limit for Gemini 2.5 Flash (~100k tokens)
-        const MAX_CHUNKS_PER_FILE = 6; // Limit chunks per file to prevent overwhelming context
+        const MAX_CONTEXT_CHARS = 80000;
+        const MAX_CHUNKS_PER_FILE = 6;
         let totalContextSize = 0;
 
         for (const file of contextFiles) {
@@ -403,7 +447,6 @@ export const getAiResponse = async (
             if (textContent && textContent.trim()) {
                 const allChunks = chunkText(textContent);
                 if (allChunks.length > 0) {
-                    // For large files, select only the most relevant chunks
                     const relevantChunks = findRelevantChunks(allChunks, question, MAX_CHUNKS_PER_FILE);
                     
                     let fileContextAdded = false;
@@ -411,7 +454,6 @@ export const getAiResponse = async (
                         const chunk = relevantChunks[i];
                         const chunkWithHeader = `### Document: ${file.name} (Part ${i + 1} of ${relevantChunks.length}) ###\n\n${chunk}`;
                         
-                        // Check if adding this chunk would exceed the context limit
                         if (totalContextSize + chunkWithHeader.length > MAX_CONTEXT_CHARS) {
                             console.warn(`Context limit reached. Skipping remaining chunks from ${file.name}`);
                             break;
@@ -434,218 +476,107 @@ export const getAiResponse = async (
         }
 
         if (contentChunks.length === 0 && contextFiles.length > 0 && !performWebSearch) {
-            const message = `Sorry, I could not read the content from the uploaded documents: ${unreadableFiles.join(', ')}. Please try other files. Currently, I can process .txt, .pdf, .docx, .pptx, .md, and .rtf files.`;
-            return { text: message, suggestions: [], sources: [] };
+            const message = `Sorry, I could not read the content from the uploaded documents: ${unreadableFiles.join(', ')}. Please try other files.`;
+            return { 
+                blocks: [{ type: 'text' as const, value: message }], 
+                suggestions: [], 
+                sources: [] 
+            };
         }
 
         const context = contentChunks.join('\n\n---\n\n');
         
         console.log(`Context size: ${totalContextSize} characters, ${contentChunks.length} chunks from ${contextFiles.length} file(s)`);
         
-        let prompt: string;
-        const modelConfig: { model: string, contents: string, config?: any } = {
+        // Use structured JSON prompt
+        const prompt = `You are an assistant that outputs ONLY JSON. ALWAYS return valid JSON (no commentary, no extra text).
+
+**CRITICAL FORMAT REQUIREMENT:**
+Return a JSON array of content blocks with this EXACT structure:
+[
+  {"type":"text", "value":"plain text explanation (no LaTeX)"},
+  {"type":"math", "value":"PURE_LATEX_EXPRESSION (no $, no $$, no HTML)"}
+]
+
+**STRICT RULES:**
+1. Every math block's value must contain ONLY LaTeX (e.g., \\int_0^1 x^2 \\,dx = \\frac{1}{3}).
+2. DO NOT include HTML tags like <mb>, <m>, <div>, or markdown markers in math blocks.
+3. DO NOT include backtick fences, dollar signs, or stray asterisks in math values.
+4. If there's both explanation and equation, return TWO blocks: first text, then math.
+
+**Context from documents:**
+${context || "No documents provided."}
+
+**Question:** ${question}
+
+**Answer (output ONLY valid JSON array):**`;
+
+        const modelConfig = {
             model: 'gemini-2.5-flash',
-            contents: '',
+            contents: prompt,
         };
 
-        if (performWebSearch) {
-            prompt = `
-                You are StudySync AI, a helpful and versatile assistant for students.
-                
-                **CRITICAL MATH FORMATTING - FOLLOW EXACTLY:**
-                
-                🚨 RULE #1: ALL math equations MUST be wrapped in <mb>LaTeX</mb> tags
-                🚨 RULE #2: NEVER write raw LaTeX commands like \\int, \\frac, \\mb outside tags
-                🚨 RULE #3: Write each equation ONLY ONCE - no plain text versions
-                
-                ✅ CORRECT FORMAT:
-                <mb>\\int x^{2} dx = \\frac{x^{3}}{3} + C</mb>
-                
-                <mb>\\int \\frac{dx}{1-x^{2}} = \\sin^{-1}(x) + C</mb>
-                
-                ❌ WRONG (what you're currently doing):
-                *$\\mb{\\frac{d}{dx} \\left[ \\int f(x) dx \\right] = f(x)</mb>
-                
-                ❌ NEVER DO THIS:
-                • <m>\\mb{\\int k f(x) dx = k \\int f(x) dx}</m>, where <m>kisaconstant.</m>
-                
-                **EXAMPLES OF PERFECT OUTPUT:**
-                
-                1. Properties of Indefinite Integration:
-                
-                • <mb>\\frac{d}{dx} \\left[ \\int f(x) dx \\right] = f(x)</mb>
-                
-                • <mb>\\int k f(x) dx = k \\int f(x) dx</mb> (where k is a constant)
-                
-                • <mb>\\int [f_1(x) \\pm f_2(x) \\pm \\ldots] dx = \\int f_1(x) dx \\pm \\int f_2(x) dx \\pm \\ldots</mb>
-                
-                2. Standard Formulas:
-                
-                • <mb>\\int x^{n} dx = \\frac{x^{n+1}}{n+1} + C</mb> (for n ≠ -1)
-                
-                • <mb>\\int e^{x} dx = e^{x} + C</mb>
-                
-                • <mb>\\int \\sin x dx = -\\cos x + C</mb>
-                
-                **Remember:** Clean, wrapped equations ONLY. No raw backslashes in text!
-                
-                **Instructions:**
-                1. You have been asked to perform a web search to answer the user's question.
-                2. Use the provided search results to formulate a comprehensive answer. You MUST cite your web sources using numbered annotations like [1], [2], etc., directly in the text where the information is used. These numbers will correspond to the list of sources appended to your answer.
-                3. If "Provided Context from Documents" is available, you may use it for supplementary information, but prioritize web search results. If you use information from a document, you MUST cite it by its full name (e.g., "(from 'My_Lecture_Notes.pdf')").
-                4. Format your answers clearly using Markdown (e.g., lists, bolding, italics) for better readability.
-                5. Always explain steps clearly for students.
-
-                **After providing your answer, suggest up to 3 relevant follow-up questions the user might have. Enclose these suggestions in a special block like this, with each suggestion on a new line:**
-                <SUGGESTIONS>
-                What are the implications of this?
-                How does this compare to [alternative topic]?
-                Where can I find more detailed information?
-                </SUGGESTIONS>
-
-                **Provided Context from Documents:**
-                ${context || "No documents provided."}
-                
-                **Question:** ${question}
-                
-                **Answer (based on web search):**
-            `;
-            modelConfig.config = {
-                tools: [{ googleSearch: {} }],
-            };
-        } else {
-            prompt = `
-                You are StudySync AI, a specialized assistant for students. Your SOLE purpose is to answer questions based *only* on the text provided in the "Provided Context" section.
-
-                **CRITICAL MATH FORMATTING - FOLLOW EXACTLY:**
-                
-                🚨 RULE #1: ALL math equations MUST be wrapped in <mb>LaTeX</mb> tags
-                🚨 RULE #2: NEVER write raw LaTeX commands like \\int, \\frac, \\mb outside tags
-                🚨 RULE #3: Write each equation ONLY ONCE - no plain text versions
-                
-                ✅ CORRECT FORMAT:
-                <mb>\\int x^{2} dx = \\frac{x^{3}}{3} + C</mb>
-                
-                <mb>\\int \\frac{dx}{1-x^{2}} = \\sin^{-1}(x) + C</mb>
-                
-                ❌ WRONG (what you're currently doing):
-                *$\\mb{\\frac{d}{dx} \\left[ \\int f(x) dx \\right] = f(x)</mb>
-                
-                ❌ NEVER DO THIS:
-                • <m>\\mb{\\int k f(x) dx = k \\int f(x) dx}</m>, where <m>kisaconstant.</m>
-                
-                **EXAMPLES OF PERFECT OUTPUT:**
-                
-                1. Properties of Indefinite Integration:
-                
-                • <mb>\\frac{d}{dx} \\left[ \\int f(x) dx \\right] = f(x)</mb>
-                
-                • <mb>\\int k f(x) dx = k \\int f(x) dx</mb> (where k is a constant)
-                
-                • <mb>\\int [f_1(x) \\pm f_2(x) \\pm \\ldots] dx = \\int f_1(x) dx \\pm \\int f_2(x) dx \\pm \\ldots</mb>
-                
-                2. Standard Formulas:
-                
-                • <mb>\\int x^{n} dx = \\frac{x^{n+1}}{n+1} + C</mb> (for n ≠ -1)
-                
-                • <mb>\\int e^{x} dx = e^{x} + C</mb>
-                
-                • <mb>\\int \\sin x dx = -\\cos x + C</mb>
-                
-                **Remember:** Clean, wrapped equations ONLY. No raw backslashes in text!
-
-                **ABSOLUTE RULES:**
-                1.  You MUST base your entire answer **exclusively** on the information found within the "Provided Context".
-                2.  If the "Provided Context" does not contain the information needed to answer the question, you MUST respond with: "I could not find an answer to your question in the uploaded documents. Try rephrasing your question or check if the relevant content is in your documents."
-                3.  **DO NOT** use any external knowledge or make inferences not directly supported by the text.
-                4.  When you find an answer, cite the source document(s) by name (e.g., "According to 'Biology_Chapter_5.pdf', ...").
-                5.  Format your answers clearly using Markdown.
-                6.  Always explain steps clearly for students.
-                7.  **Important**: The context provided may be excerpts from larger documents. Focus on answering based on what is available. If the answer requires information not present in the excerpts, acknowledge this limitation.
-
-                **After providing your answer, list the primary source documents you used in a special block:**
-                <SOURCES>
-                Document_Name_1.pdf
-                Document_Name_2.txt
-                </SOURCES>
-
-                **After providing your answer, suggest up to 3 relevant follow-up questions:**
-                <SUGGESTIONS>
-                What is the next step in the process?
-                Can you explain that in simpler terms?
-                How does this relate to Topic X?
-                </SUGGESTIONS>
-
-                **Provided Context (${contentChunks.length} relevant sections):**
-                ${context || "No documents provided. You must inform the user that they need to upload documents before you can answer any questions."}
-                
-                **User's Question:** ${question}
-                
-                **Answer (based ONLY on the Provided Context):**
-            `;
-        }
-
-        modelConfig.contents = prompt;
-
         const response = await ai.models.generateContent(modelConfig);
-        
         const rawResponseText = response.text || '';
-        let aiResponseText: string = rawResponseText;
-        let suggestions: { displayText: string; query: string }[] = [];
-        let sources: string[] = [];
-
-        const suggestionBlockRegex = /<SUGGESTIONS>([\s\S]*?)<\/SUGGESTIONS>/;
-        const suggestionMatch = aiResponseText.match(suggestionBlockRegex);
-
-        if (suggestionMatch && suggestionMatch[1]) {
-            aiResponseText = aiResponseText.replace(suggestionBlockRegex, '').trim();
-            suggestions = suggestionMatch[1]
-                .split('\n')
-                .map((s: string) => s.trim())
-                .filter((s: string) => s.length > 0)
-                .map((s: string) => ({ displayText: s, query: s }));
-        }
         
-        const sourceBlockRegex = /<SOURCES>([\s\S]*?)<\/SOURCES>/;
-        const sourceMatch = aiResponseText.match(sourceBlockRegex);
-        
-        if (!performWebSearch && sourceMatch && sourceMatch[1]) {
-            aiResponseText = aiResponseText.replace(sourceBlockRegex, '').trim();
-            sources = sourceMatch[1]
-                .split('\n')
-                .map((s: string) => s.trim())
-                .filter((s: string) => s.length > 0);
-        }
+        console.log('🤖 RAW AI OUTPUT:', rawResponseText.substring(0, 500));
 
-
-        if (performWebSearch) {
-            const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
-            const searchSources = groundingMetadata?.groundingChunks
-                ?.map(chunk => chunk.web)
-                .filter((web): web is { uri: string; title?: string } => 
-                    typeof web === 'object' && web !== null && typeof (web as any).uri === 'string'
-                );
+        // Try to parse as JSON
+        try {
+            let jsonText = rawResponseText.trim();
             
-            if (searchSources && searchSources.length > 0) {
-                const uniqueSources = Array.from(new Map(searchSources.map(s => [s.uri, s])).values());
-                const sourcesMarkdown = `\n\n---\n**Sources:**\n` + uniqueSources.map((source: any, index: number) => `${index + 1}. [${source.title || source.uri}](${source.uri})`).join('\n');
-                aiResponseText += sourcesMarkdown;
+            // Remove markdown code blocks if present
+            if (jsonText.startsWith('```json')) {
+                jsonText = jsonText.slice(7);
+            } else if (jsonText.startsWith('```')) {
+                jsonText = jsonText.slice(3);
             }
-        }
-        
-        if (unreadableFiles.length > 0) {
-            const unreadableNote = `\n\n---\n*Note: The content of the following file(s) could not be read and was not included in the context: ${unreadableFiles.join(', ')}.*`;
-            aiResponseText += unreadableNote;
+            if (jsonText.endsWith('```')) {
+                jsonText = jsonText.slice(0, -3);
+            }
+            
+            const parsed = JSON.parse(jsonText.trim());
+            
+            if (Array.isArray(parsed)) {
+                console.log('✅ Successfully parsed structured JSON with', parsed.length, 'blocks');
+                return {
+                    blocks: parsed,
+                    suggestions: [],
+                    sources: []
+                };
+            } else {
+                console.warn('⚠️  Parsed JSON is not an array:', typeof parsed);
+            }
+        } catch (e) {
+            console.warn('⚠️  Failed to parse JSON:', e);
+            console.log('Raw text that failed to parse:', rawResponseText);
         }
 
-        // Apply math normalization
-        aiResponseText = normalizeAIOutput(aiResponseText);
+        // Fallback: convert text to blocks
+        console.log('📄 Using fallback: converting text to single text block');
+        const textBlock: ContentBlock = {
+            type: 'text',
+            value: rawResponseText
+        };
 
-        return { text: aiResponseText, suggestions, sources };
+        return { 
+            blocks: [textBlock], 
+            suggestions: [], 
+            sources: [] 
+        };
 
     } catch (error) {
-        console.error("Error getting AI response:", error);
-        return { text: "Sorry, I encountered an error while trying to answer your question.", suggestions: [], sources: [] };
+        console.error("❌ Error getting AI response:", error);
+        return { 
+            blocks: [
+                {
+                    type: 'text' as const,
+                    value: `Sorry, I encountered an error: ${error instanceof Error ? error.message : String(error)}`
+                }
+            ], 
+            suggestions: [], 
+            sources: [] 
+        };
     }
 };
 
@@ -720,8 +651,8 @@ Return ONLY the JSON array, no additional text or markdown code blocks.`;
         }
         
         return flashcardData.map((data: any) => ({
-            front: normalizeAIOutput(data.front || ''),
-            back: normalizeAIOutput(data.back || ''),
+            front: data.front || '',
+            back: data.back || '',
             tags: data.tags || [],
         }));
     } catch (error) {

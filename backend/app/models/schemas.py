@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Literal
 from enum import Enum
 
 class FileType(str, Enum):
@@ -18,8 +18,13 @@ class ChatMessage(BaseModel):
     text: str
     use_web_search: bool = False
 
+class ContentBlock(BaseModel):
+    """Structured content block from AI response"""
+    type: Literal["text", "math"]
+    value: str
+
 class ChatResponse(BaseModel):
-    text: str
+    blocks: List[ContentBlock]  # Structured blocks instead of plain text
     suggestions: List[dict] = []
     sources: List[str] = []
 
