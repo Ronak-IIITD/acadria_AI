@@ -30,17 +30,17 @@ const features = [
 
 const Features: FC = () => {
   return (
-    <section id="features" className="relative py-20 sm:py-24 lg:py-28 overflow-hidden">
+    <section id="features" className="relative py-12 sm:py-16 lg:py-20 overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 sm:px-8">
         {/* Section Header */}
         <ScrollReveal animation="fade" delay={0.1}>
           <div className="text-center max-w-3xl mx-auto mb-16">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6" 
                  style={{ 
-                   backgroundColor: 'var(--color-accent-secondary-soft)',
-                   border: '1px solid var(--color-border-light)'
+                   background: 'linear-gradient(135deg, rgba(53, 208, 195, 0.1), rgba(139, 147, 212, 0.1))',
+                   border: '1px solid rgba(53, 208, 195, 0.2)'
                  }}>
-              <span className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+              <span className="text-sm font-semibold bg-gradient-to-r from-cyan-600 to-indigo-600 bg-clip-text text-transparent">
                 Features
               </span>
             </div>
@@ -73,12 +73,21 @@ const Features: FC = () => {
               delay={0.1 + index * 0.1}
             >
               <div 
-                className="group relative p-8 rounded-3xl transition-all hover:scale-105"
+                className="group relative p-8 rounded-3xl"
                 style={{
-                  backgroundColor: 'var(--color-surface-soft)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.6)',
                   border: '1px solid var(--color-border-light)',
                   boxShadow: 'var(--shadow-sm)',
-                  transitionDuration: 'var(--transition-base)'
+                  transform: 'translateZ(0)',
+                  transition: 'all 0.3s ease-out',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateZ(20px)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateZ(0)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
                 }}
               >
                 {/* Icon */}

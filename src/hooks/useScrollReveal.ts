@@ -10,7 +10,7 @@ export const useScrollReveal = (options: UseScrollRevealOptions = {}) => {
   const {
     threshold = 0.1,
     rootMargin = '0px 0px -100px 0px',
-    triggerOnce = true
+    triggerOnce = false
   } = options;
 
   const [isVisible, setIsVisible] = useState(false);

@@ -207,8 +207,8 @@ body {
 .header-translucent {
   background: linear-gradient(
     135deg,
-    rgba(250, 251, 252, 0.70) 0%,
-    rgba(245, 247, 250, 0.75) 100%
+    rgba(53, 208, 195, 0.03) 0%,
+    rgba(139, 147, 212, 0.04) 100%
   ) !important;
   backdrop-filter: blur(24px) saturate(200%) brightness(1.05);
   -webkit-backdrop-filter: blur(24px) saturate(200%) brightness(1.05);
@@ -218,8 +218,8 @@ body {
 html.dark .header-translucent {
   background: linear-gradient(
     135deg,
-    rgba(15, 20, 25, 0.70) 0%,
-    rgba(22, 27, 34, 0.75) 100%
+    rgba(53, 208, 195, 0.03) 0%,
+    rgba(139, 147, 212, 0.04) 100%
   ) !important;
   border-color: rgba(102, 113, 128, 0.15) !important;
   backdrop-filter: blur(24px) saturate(200%) brightness(0.95);

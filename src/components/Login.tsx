@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
-import LogoIcon from './icons/LogoIcon';
+import AIBookIcon from './icons/AIBookIcon';
 import type { User } from '../types';
 
 interface LoginProps {
@@ -13,6 +13,7 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -62,36 +63,57 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
 
   return (
     <div 
-        className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-[100] animate-fade-in"
-        onClick={onClose}
+        className="fixed inset-0 flex items-center justify-center z-[100] animate-fade-in"
+        style={{ 
+          background: 'linear-gradient(180deg, rgba(53, 208, 195, 0.03) 0%, rgba(139, 147, 212, 0.05) 50%, rgba(139, 147, 212, 0.03) 100%)',
+          backgroundColor: 'var(--color-bg-primary)'
+        }}
         aria-modal="true"
         role="dialog"
     >
-      <div 
-        className="relative text-center bg-white/70 dark:bg-black/30 backdrop-blur-2xl p-8 sm:p-10 rounded-2xl shadow-2xl max-w-md w-full border border-white/20 animate-fade-in-up"
-        onClick={e => e.stopPropagation()} 
+      {/* Close button - Top Right */}
+      <button 
+          onClick={onClose} 
+          className="absolute top-8 right-8 transition-opacity hover:opacity-70"
+          style={{ color: 'var(--color-text-secondary)' }}
+          aria-label="Close login dialog"
       >
-        <button 
-            onClick={onClose} 
-            className="absolute top-4 right-4 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-colors"
-            aria-label="Close login dialog"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      <div className="relative text-center max-w-md w-full px-6">
+
+        {/* Logo */}
+        <div className="mb-8">
+          <div 
+            className="inline-flex p-4 rounded-2xl mb-4"
+            style={{ backgroundColor: 'rgba(53, 208, 195, 0.12)' }}
+          >
+            <AIBookIcon className="h-12 w-12" style={{ color: '#35d0c3' }} />
+          </div>
+        </div>
         
-        <LogoIcon className="h-12 w-12 mx-auto mb-4 text-gray-800 dark:text-white" />
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          {isSignUp ? 'Create Account' : 'Welcome Back'}
+        {/* Header */}
+        <h2 className="text-3xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>
+          {isSignUp ? 'Create Account' : 'Welcome back'}
         </h2>
-        <p className="text-gray-700 dark:text-gray-300 mb-6">Your personal AI-powered learning companion.</p>
+        <p className="mb-8" style={{ color: 'var(--color-text-secondary)' }}>
+          Let's continue your learning journey.
+        </p>
         
         {/* Google Sign In */}
         <button
           onClick={handleGoogleSignIn}
           disabled={loading}
-          className="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-4 focus:ring-purple-500/50 transition-all duration-300 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+          className="w-full font-medium py-3.5 px-4 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 mb-6"
+          style={{
+            backgroundColor: 'var(--color-surface-soft)',
+            border: '1px solid var(--color-border-light)',
+            color: 'var(--color-text-primary)',
+            boxShadow: 'var(--shadow-sm)',
+          }}
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -102,50 +124,94 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
           Continue with Google
         </button>
 
+        {/* Divider */}
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+            <div className="w-full border-t" style={{ borderColor: 'var(--color-border-light)' }}></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white/70 dark:bg-black/30 text-gray-500 dark:text-gray-400">Or continue with email</span>
+            <span className="px-3" style={{ backgroundColor: 'var(--color-bg-primary)', color: 'var(--color-text-muted)' }}>
+              or continue with
+            </span>
           </div>
         </div>
 
         {/* Email/Password Form */}
-        <form onSubmit={handleEmailAuth} className="space-y-4 text-left">
+        <form onSubmit={handleEmailAuth} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Email
-            </label>
             <input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-              placeholder="you@example.com"
+              className="w-full px-4 py-3.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-offset-0"
+              style={{
+                backgroundColor: 'var(--color-surface-soft)',
+                border: '1px solid var(--color-border-light)',
+                color: 'var(--color-text-primary)',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+              placeholder="Enter your email"
             />
           </div>
           
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Password
-            </label>
+          <div className="relative">
             <input
               id="password"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-              placeholder="••••••••"
+              className="w-full px-4 py-3.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-offset-0"
+              style={{
+                backgroundColor: 'var(--color-surface-soft)',
+                border: '1px solid var(--color-border-light)',
+                color: 'var(--color-text-primary)',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+              placeholder="Enter your password"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 transition-opacity hover:opacity-70"
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
+              {showPassword ? (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              )}
+            </button>
           </div>
 
+          {!isSignUp && (
+            <div className="text-right">
+              <button
+                type="button"
+                className="text-sm transition-opacity hover:opacity-70"
+                style={{ color: 'var(--color-text-muted)' }}
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
+
           {error && (
-            <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">
+            <div 
+              className="text-sm p-3 rounded-lg"
+              style={{ 
+                color: 'var(--color-error)',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              }}
+            >
               {error}
             </div>
           )}
@@ -153,21 +219,32 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-purple-600 text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:bg-purple-700 focus:outline-none focus:ring-4 focus:ring-purple-500/50 transition-all duration-300 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full font-semibold py-3.5 px-4 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              background: 'linear-gradient(135deg, #35d0c3 0%, #8b93d4 100%)',
+              color: '#FFFFFF',
+              boxShadow: '0 4px 12px rgba(53, 208, 195, 0.3)',
+            }}
           >
-            {loading ? 'Please wait...' : (isSignUp ? 'Sign Up' : 'Sign In')}
+            {loading ? 'Please wait...' : 'Sign In'}
           </button>
         </form>
 
-        <button
-          onClick={() => {
-            setIsSignUp(!isSignUp);
-            setError('');
-          }}
-          className="mt-4 text-sm text-purple-600 dark:text-purple-400 hover:underline"
-        >
-          {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-        </button>
+        <div className="mt-6">
+          <p style={{ color: 'var(--color-text-muted)' }}>
+            Don't have an account?{' '}
+            <button
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setError('');
+              }}
+              className="font-medium transition-opacity hover:opacity-70"
+              style={{ color: 'var(--color-text-primary)' }}
+            >
+              Sign up
+            </button>
+          </p>
+        </div>
       </div>
     </div>
   );
