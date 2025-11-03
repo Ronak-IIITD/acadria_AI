@@ -83,9 +83,7 @@ const App = () => {
           {user ? (
             <Dashboard />
           ) : (
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-              <LandingPage onGetStarted={openLoginModal} />
-            </div>
+            <LandingPage onGetStarted={openLoginModal} />
           )}
         </main>
         {isLoginOpen && <Login onLogin={handleLogin} onClose={closeLoginModal} />}

@@ -7,8 +7,13 @@ import ModelSelector from './ModelSelector';
 import PdfViewer from './PdfViewer';
 import FlashcardGenerator from './FlashcardGenerator';
 import FlashcardDeck from './FlashcardDeck';
+import QuizGenerator from './QuizGenerator';
+import QuizTaker from './QuizTaker';
+import SummaryViewer from './SummaryViewer';
+import KeyTakeawaysPanel from './KeyTakeawaysPanel';
 import { AiModel as AiModelEnum } from '../types';
-import { Flashcard } from '@/domain/studyTypes';
+import { Flashcard, Quiz, Summary } from '@/domain/studyTypes';
+import { generateQuiz, generateSummary, generateKeyTakeaways } from '@/services/studyToolsService';
 
 const FLASHCARDS_STORAGE_KEY = 'studysync_flashcards';
 
@@ -22,6 +27,21 @@ const Dashboard: React.FC = () => {
   const [flashcards, setFlashcards] = useState<Record<string, Flashcard[]>>({});
   const [generatingFor, setGeneratingFor] = useState<StudyFile | null>(null);
   const [studyingFile, setStudyingFile] = useState<StudyFile | null>(null);
+
+  // Quiz state
+  const [quizGeneratingFor, setQuizGeneratingFor] = useState<StudyFile | null>(null);
+  const [currentQuiz, setCurrentQuiz] = useState<Quiz | null>(null);
+  const [isQuizLoading, setIsQuizLoading] = useState(false);
+
+  // Summary state
+  const [summaryFile, setSummaryFile] = useState<StudyFile | null>(null);
+  const [currentSummary, setCurrentSummary] = useState<Summary | null>(null);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
+
+  // Key Takeaways state
+  const [takeawaysFile, setTakeawaysFile] = useState<StudyFile | null>(null);
+  const [currentTakeaways, setCurrentTakeaways] = useState<string[]>([]);
+  const [isTakeawaysLoading, setIsTakeawaysLoading] = useState(false);
 
   // Resizable panel state
   const [sidebarWidth, setSidebarWidth] = useState(380);
@@ -121,6 +141,75 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Quiz handlers
+  const handleGenerateQuiz = (file: StudyFile) => {
+    setQuizGeneratingFor(file);
+  };
+
+  const handleQuizGenerate = async (count: number, difficulty: 'easy' | 'medium' | 'hard' | 'mixed') => {
+    if (!quizGeneratingFor) return;
+    
+    setIsQuizLoading(true);
+    try {
+      const quiz = await generateQuiz(quizGeneratingFor.content, quizGeneratingFor.id, count, difficulty);
+      setCurrentQuiz(quiz);
+      setQuizGeneratingFor(null);
+    } catch (error) {
+      console.error('Failed to generate quiz:', error);
+      alert('Failed to generate quiz. Please try again.');
+      setQuizGeneratingFor(null);
+    } finally {
+      setIsQuizLoading(false);
+    }
+  };
+
+  const handleQuizComplete = (score: number, totalQuestions: number) => {
+    console.log(`Quiz completed: ${score}/${totalQuestions}`);
+    // Could save quiz results here
+  };
+
+  // Summary handlers
+  const handleGenerateSummary = (file: StudyFile) => {
+    setSummaryFile(file);
+    handleSummaryGenerate('detailed'); // Start with detailed summary
+  };
+
+  const handleSummaryGenerate = async (mode: 'brief' | 'detailed' | 'bullets') => {
+    if (!summaryFile) return;
+    
+    setIsSummaryLoading(true);
+    try {
+      const summary = await generateSummary(summaryFile.content, summaryFile.id, mode);
+      setCurrentSummary(summary);
+    } catch (error) {
+      console.error('Failed to generate summary:', error);
+      alert('Failed to generate summary. Please try again.');
+    } finally {
+      setIsSummaryLoading(false);
+    }
+  };
+
+  // Key Takeaways handlers
+  const handleGenerateKeyTakeaways = (file: StudyFile) => {
+    setTakeawaysFile(file);
+    handleTakeawaysGenerate(5);
+  };
+
+  const handleTakeawaysGenerate = async (count: number) => {
+    if (!takeawaysFile) return;
+    
+    setIsTakeawaysLoading(true);
+    try {
+      const takeaways = await generateKeyTakeaways(takeawaysFile.content, count);
+      setCurrentTakeaways(takeaways);
+    } catch (error) {
+      console.error('Failed to generate key takeaways:', error);
+      alert('Failed to generate key takeaways. Please try again.');
+    } finally {
+      setIsTakeawaysLoading(false);
+    }
+  };
+
   // Sidebar resize handlers
   const handleSidebarMouseDown = useCallback(() => {
     setIsResizingSidebar(true);
@@ -213,6 +302,9 @@ const Dashboard: React.FC = () => {
               )}
               onGenerateFlashcards={handleGenerateFlashcards}
               onStudyFlashcards={handleStudyFlashcards}
+              onGenerateQuiz={handleGenerateQuiz}
+              onGenerateSummary={handleGenerateSummary}
+              onGenerateKeyTakeaways={handleGenerateKeyTakeaways}
             />
           </div>
           
@@ -303,6 +395,49 @@ const Dashboard: React.FC = () => {
           onUpdateCard={handleUpdateFlashcard}
           onClose={() => setStudyingFile(null)}
           documentTitle={studyingFile.name}
+        />
+      )}
+
+      {quizGeneratingFor && (
+        <QuizGenerator
+          documentTitle={quizGeneratingFor.name}
+          onGenerate={handleQuizGenerate}
+          onClose={() => setQuizGeneratingFor(null)}
+          isLoading={isQuizLoading}
+        />
+      )}
+
+      {currentQuiz && (
+        <QuizTaker
+          quiz={currentQuiz}
+          onClose={() => setCurrentQuiz(null)}
+          onComplete={handleQuizComplete}
+        />
+      )}
+
+      {summaryFile && currentSummary && (
+        <SummaryViewer
+          summary={currentSummary}
+          documentTitle={summaryFile.name}
+          onClose={() => {
+            setSummaryFile(null);
+            setCurrentSummary(null);
+          }}
+          onRegenerate={handleSummaryGenerate}
+          isLoading={isSummaryLoading}
+        />
+      )}
+
+      {takeawaysFile && currentTakeaways.length > 0 && (
+        <KeyTakeawaysPanel
+          takeaways={currentTakeaways}
+          documentTitle={takeawaysFile.name}
+          onClose={() => {
+            setTakeawaysFile(null);
+            setCurrentTakeaways([]);
+          }}
+          onRegenerate={handleTakeawaysGenerate}
+          isLoading={isTakeawaysLoading}
         />
       )}
     </div>

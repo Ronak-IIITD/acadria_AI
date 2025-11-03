@@ -5,6 +5,9 @@ import SearchIcon from './icons/SearchIcon';
 import SortIcon from './icons/SortIcon';
 import FileIcon from './FileIcon';
 import SparklesIcon from './icons/SparklesIcon';
+import QuizIcon from './icons/QuizIcon';
+import SummarizeIcon from './icons/SummarizeIcon';
+import LightbulbIcon from './icons/LightbulbIcon';
 
 interface FileListProps {
   files: StudyFile[];
@@ -13,6 +16,9 @@ interface FileListProps {
   flashcardCounts?: Record<string, number>;
   onGenerateFlashcards?: (file: StudyFile) => void;
   onStudyFlashcards?: (file: StudyFile) => void;
+  onGenerateQuiz?: (file: StudyFile) => void;
+  onGenerateSummary?: (file: StudyFile) => void;
+  onGenerateKeyTakeaways?: (file: StudyFile) => void;
 }
 
 const formatBytes = (bytes: number, decimals = 2) => {
@@ -30,7 +36,10 @@ const FileList: React.FC<FileListProps> = ({
   onView, 
   flashcardCounts = {}, 
   onGenerateFlashcards, 
-  onStudyFlashcards 
+  onStudyFlashcards,
+  onGenerateQuiz,
+  onGenerateSummary,
+  onGenerateKeyTakeaways
 }) => {
   const [fileToDelete, setFileToDelete] = useState<StudyFile | null>(null);
   const [filterQuery, setFilterQuery] = useState('');
@@ -234,6 +243,42 @@ const FileList: React.FC<FileListProps> = ({
                     title="Generate flashcards with AI"
                   >
                     <SparklesIcon className="h-4 w-4" />
+                  </button>
+                )}
+                
+                {/* Generate Quiz Button */}
+                {onGenerateQuiz && (
+                  <button
+                    onClick={() => onGenerateQuiz(file)}
+                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-indigo-500 hover:bg-indigo-500/10 rounded-full transition-all"
+                    aria-label={`Generate quiz for ${file.name}`}
+                    title="Generate quiz with AI"
+                  >
+                    <QuizIcon className="h-4 w-4" />
+                  </button>
+                )}
+                
+                {/* Generate Summary Button */}
+                {onGenerateSummary && (
+                  <button
+                    onClick={() => onGenerateSummary(file)}
+                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-green-500 hover:bg-green-500/10 rounded-full transition-all"
+                    aria-label={`Generate summary for ${file.name}`}
+                    title="Generate summary with AI"
+                  >
+                    <SummarizeIcon className="h-4 w-4" />
+                  </button>
+                )}
+                
+                {/* Generate Key Takeaways Button */}
+                {onGenerateKeyTakeaways && (
+                  <button
+                    onClick={() => onGenerateKeyTakeaways(file)}
+                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-yellow-500 hover:bg-yellow-500/10 rounded-full transition-all"
+                    aria-label={`Generate key takeaways for ${file.name}`}
+                    title="Generate key takeaways with AI"
+                  >
+                    <LightbulbIcon className="h-4 w-4" />
                   </button>
                 )}
                 
