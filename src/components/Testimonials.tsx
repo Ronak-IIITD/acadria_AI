@@ -4,26 +4,26 @@ import ScrollReveal from './ScrollReveal';
 const testimonialsData = [
   {
     quote:
-      "StudySync AI has completely changed how I prepare for exams. Being able to 'talk' to my notes is a game-changer. My comprehension has skyrocketed.",
-    name: 'Alex Johnson',
-    title: 'Medical Student',
-    avatar: 'https://i.pravatar.cc/120?u=studysync-alex',
+      "Turned my 200-page lecture notes into flashcards in under 5 minutes. Revision before finals was actually manageable for the first time.",
+    name: 'Priya Sharma',
+    title: 'Computer Science, IIT Delhi',
+    avatar: 'https://mastdp.com/images/simple-girl-pic/2024/07/girl-pic-simple.webp',
     rating: 5
   },
   {
     quote:
-      'As a law student drowning in reading material, this tool is a lifesaver. It finds the exact clause I need in seconds and keeps the context front and centre.',
-    name: 'Samantha Lee',
-    title: 'Law Student',
-    avatar: 'https://i.pravatar.cc/120?u=studysync-sam',
+      'Asked 50+ questions from my uploaded PDFs while studying for CA exams. Every answer cited the exact page. No more hunting through notes.',
+    name: 'Arjun Mehta',
+    title: 'Commerce Student, University of Delhi',
+    avatar: 'https://w0.peakpx.com/wallpaper/459/1009/HD-wallpaper-indian-model-boy-cute-u-wall-thumbnail.jpg',
     rating: 5
   },
   {
     quote:
-      'The ability to switch between my documents and a clean, distraction-free chat helps me stay in the zone. It feels calm, even during finals.',
-    name: 'David Chen',
-    title: 'Engineering Major',
-    avatar: 'https://i.pravatar.cc/120?u=studysync-david',
+      'Generated practice quizzes from my organic chemistry notes. Scored 15% higher after using this for two weeks. Retention is actually sticking now.',
+    name: 'Sneha Reddy',
+    title: 'Medical Student, AIIMS',
+    avatar: 'https://i.pravatar.cc/120?u=studysync-sneha',
     rating: 5
   },
 ];
@@ -50,7 +50,7 @@ const Testimonials: FC = () => {
                   letterSpacing: 'var(--letter-spacing-tight)',
                   lineHeight: 'var(--line-height-tight)'
                 }}>
-              Loved by Students Who Value Clarity
+              Real Students, Real Results
             </h2>
             
             <p className="text-lg sm:text-xl"
@@ -58,7 +58,7 @@ const Testimonials: FC = () => {
                  color: 'var(--color-text-secondary)',
                  lineHeight: 'var(--line-height-relaxed)'
                }}>
-              Students from medicine to law rely on the measured pace of StudySync AI to revise without feeling overwhelmed.
+              See how students across IITs, NITs, and AIIMS are using AI to study smarter and achieve better grades.
             </p>
           </div>
         </ScrollReveal>

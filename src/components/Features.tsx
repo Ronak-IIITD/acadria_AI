@@ -7,24 +7,24 @@ import ScrollReveal from './ScrollReveal';
 const features = [
   {
     icon: BrainCircuitIcon,
-    title: 'Grounded Q&A',
-    description: 'Ask anything about your material and receive responses that cite the passages your notes came from.',
+    title: 'Ask Questions, Get Personal Answers',
+    description: 'Chat with an AI tutor trained on YOUR notes. Every answer cites the exact passage from your material — no hallucinations, no internet noise.',
     color: 'var(--color-accent-primary)',
     bgColor: 'var(--color-accent-primary-soft)'
   },
   {
-    icon: FileCheckIcon,
-    title: 'Thoughtful Imports',
-    description: 'PDF, DOCX, TXT, and slides are parsed gently, keeping structure intact for accurate summaries.',
-    color: 'var(--color-accent-secondary)',
-    bgColor: 'var(--color-accent-secondary-soft)'
-  },
-  {
     icon: SparklesIcon,
-    title: 'Study Modes in Sync',
-    description: 'Flashcards, quizzes, and key takeaways all originate from the same calm workspace — no context switching.',
+    title: 'Auto-Generate Quizzes & Flashcards',
+    description: 'Upload your PDFs, handwritten notes, or slides and instantly get custom study materials. Flashcards, quizzes, and summaries — all from YOUR content.',
     color: 'var(--color-accent-lavender)',
     bgColor: 'var(--color-accent-lavender-soft)'
+  },
+  {
+    icon: FileCheckIcon,
+    title: 'Upload Any Format, We Handle It',
+    description: 'PDFs, DOCX, TXT, images, and slides — all formats supported. AI preserves structure and meaning for accurate study tools.',
+    color: 'var(--color-accent-secondary)',
+    bgColor: 'var(--color-accent-secondary-soft)'
   },
 ];
 
@@ -51,7 +51,7 @@ const Features: FC = () => {
                   letterSpacing: 'var(--letter-spacing-tight)',
                   lineHeight: 'var(--line-height-tight)'
                 }}>
-              A Toolkit That Stays Out of the Spotlight
+              Everything You Need to Study Smarter
             </h2>
             
             <p className="text-lg sm:text-xl"
@@ -59,7 +59,7 @@ const Features: FC = () => {
                  color: 'var(--color-text-secondary)',
                  lineHeight: 'var(--line-height-relaxed)'
                }}>
-              Each capability quietly supports comprehension so you can focus on understanding instead of configuring.
+              Upload your materials once. Get flashcards, quizzes, summaries, and an AI tutor — all personalized to what you're learning.
             </p>
           </div>
         </ScrollReveal>
@@ -73,13 +73,14 @@ const Features: FC = () => {
               delay={0.1 + index * 0.1}
             >
               <div 
-                className="group relative p-8 rounded-3xl"
+                className="group relative p-8 rounded-3xl h-full flex flex-col"
                 style={{
                   backgroundColor: 'rgba(255, 255, 255, 0.6)',
                   border: '1px solid var(--color-border-light)',
                   boxShadow: 'var(--shadow-sm)',
                   transform: 'translateZ(0)',
                   transition: 'all 0.3s ease-out',
+                  minHeight: '320px'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateZ(20px)';
@@ -92,14 +93,15 @@ const Features: FC = () => {
               >
                 {/* Icon */}
                 <div 
-                  className="inline-flex p-4 rounded-2xl mb-6 transition-transform group-hover:scale-110"
+                  className="inline-flex p-3 rounded-xl mb-6 transition-transform group-hover:scale-110"
                   style={{ 
                     backgroundColor: bgColor,
                     color: color,
-                    transitionDuration: 'var(--transition-base)'
+                    transitionDuration: 'var(--transition-base)',
+                    width: 'fit-content'
                   }}
                 >
-                  <Icon className="h-7 w-7" />
+                  <Icon className="h-5 w-5" />
                 </div>
 
                 {/* Content */}

@@ -47,7 +47,7 @@ const Footer: FC = () => {
                  color: 'var(--color-text-secondary)',
                  lineHeight: '1.6'
                }}>
-              Focus first. AI that helps you learn deeply.
+              Built for students by students. Focus first. AI that helps you learn deeply.
             </p>
             
             {/* Social Links */}
