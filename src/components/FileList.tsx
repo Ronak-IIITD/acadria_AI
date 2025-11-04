@@ -11,6 +11,9 @@ import LightbulbIcon from './icons/LightbulbIcon';
 
 interface FileListProps {
   files: StudyFile[];
+  selectedFileIds: Set<string>;
+  onToggleFile: (fileId: string) => void;
+  onSelectAll: () => void;
   onDelete: (fileId: string) => void;
   onView?: (file: StudyFile) => void;
   flashcardCounts?: Record<string, number>;
@@ -31,7 +34,10 @@ const formatBytes = (bytes: number, decimals = 2) => {
 };
 
 const FileList: React.FC<FileListProps> = ({ 
-  files, 
+  files,
+  selectedFileIds,
+  onToggleFile,
+  onSelectAll,
   onDelete, 
   onView, 
   flashcardCounts = {}, 
@@ -95,6 +101,36 @@ const FileList: React.FC<FileListProps> = ({
   return (
     <>
       <div className="mb-4 space-y-3">
+        {/* Select All Sources Button */}
+        {files.length > 0 && (
+          <button
+            onClick={onSelectAll}
+            className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg font-medium text-sm transition-all"
+            style={{
+              background: selectedFileIds.size === files.length ? 'var(--color-accent-primary)' : 'var(--color-bg-elevated)',
+              color: selectedFileIds.size === files.length ? 'white' : 'var(--color-text-primary)',
+              border: '1.5px solid var(--color-border-medium)',
+              boxShadow: 'var(--shadow-sm)'
+            }}
+          >
+            <span className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {selectedFileIds.size === files.length ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                )}
+              </svg>
+              <span>
+                {selectedFileIds.size === files.length ? 'All sources selected' : 'Select all sources'}
+              </span>
+            </span>
+            <span className="text-xs opacity-75">
+              {selectedFileIds.size}/{files.length}
+            </span>
+          </button>
+        )}
+        
         {/* Filter Input */}
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -175,11 +211,11 @@ const FileList: React.FC<FileListProps> = ({
               key={file.id}
               style={{
                 background: 'var(--color-bg-elevated)',
-                padding: '0.75rem',
+                padding: '0.625rem',
                 borderRadius: 'var(--radius-lg)',
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
+                flexDirection: 'column',
+                gap: '0.375rem',
                 transition: 'all 0.3s ease',
                 border: '1px solid var(--color-border-medium)',
                 boxShadow: 'var(--shadow-xs)'
@@ -196,20 +232,60 @@ const FileList: React.FC<FileListProps> = ({
               }}
               className="group animate-fade-in-up"
             >
-              <div className="flex items-center min-w-0 flex-1">
-                <div style={{ height: '1.5rem', width: '1.5rem', flexShrink: 0, color: 'var(--color-text-secondary)' }}>
+              <div className="flex items-start min-w-0 flex-1 gap-3">
+                {/* Checkbox */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleFile(file.id);
+                  }}
+                  className="mt-1 flex-shrink-0"
+                  aria-label={selectedFileIds.has(file.id) ? 'Deselect source' : 'Select source'}
+                  title={selectedFileIds.has(file.id) ? 'Click to deselect this source' : 'Click to select this source'}
+                >
+                  <div 
+                    className="w-5 h-5 rounded border-2 flex items-center justify-center transition-all"
+                    style={{
+                      borderColor: selectedFileIds.has(file.id) ? 'var(--color-accent-primary)' : 'var(--color-border-medium)',
+                      background: selectedFileIds.has(file.id) ? 'var(--color-accent-primary)' : 'transparent'
+                    }}
+                  >
+                    {selectedFileIds.has(file.id) && (
+                      <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                </button>
+                
+                <div style={{ height: '1.5rem', width: '1.5rem', flexShrink: 0, color: 'var(--color-text-secondary)', marginTop: '2px' }}>
                   <FileIcon type={file.type} className="h-6 w-6" />
                 </div>
-                <div style={{ marginLeft: '0.75rem', minWidth: 0, flex: 1 }}>
-                  <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={file.name}>{file.name}</p>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <p 
+                    style={{ 
+                      fontSize: '0.875rem', 
+                      fontWeight: 600, 
+                      color: 'var(--color-text-primary)', 
+                      wordBreak: 'break-word',
+                      lineHeight: '1.4',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      opacity: 1
+                    }} 
+                    title={file.name}
+                  >
+                    {file.name}
+                  </p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>
                     {file.type} - {formatBytes(file.size)}
                   </p>
                 </div>
               </div>
-              {/* Action buttons are always visible on small screens for touch accessibility,
-                 and reveal on hover/focus for md+ screens to reduce visual noise. */}
-              <div className="flex items-center gap-2 flex-shrink-0 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
+              {/* Action buttons container - now below the file info */}
+              <div className="flex items-center gap-2 flex-wrap justify-end transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
                 {/* Flashcard Badge - Always visible if cards exist */}
                 {flashcardCounts[file.id] > 0 && (
                   <div className="opacity-100 flex items-center gap-1 bg-purple-100 dark:bg-purple-900/40 px-2 py-1 rounded-full">

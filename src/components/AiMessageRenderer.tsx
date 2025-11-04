@@ -1,15 +1,40 @@
 import React from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
+import CodeCanvas from './CodeCanvas';
 
 export interface ContentBlock {
-  type: 'text' | 'math';
+  type: 'text' | 'math' | 'code';
   value: string;
+  language?: string;
+  filename?: string;
 }
 
 interface AiMessageRendererProps {
   blocks: ContentBlock[];
   className?: string;
+}
+
+/**
+ * Simple Markdown-like text formatter
+ * Converts **bold**, bullet points, and line breaks to proper HTML
+ */
+function formatText(text: string): string {
+  let formatted = text;
+  
+  // Convert **bold** to <strong>
+  formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  
+  // Convert bullet points • to styled bullets
+  formatted = formatted.replace(/^• (.+)$/gm, '<div class="ml-0 my-1">• $1</div>');
+  
+  // Convert sub-bullets ◦ to indented bullets
+  formatted = formatted.replace(/^  ◦ (.+)$/gm, '<div class="ml-6 my-1">◦ $1</div>');
+  
+  // Convert single newlines to <br> for proper spacing
+  formatted = formatted.replace(/\n/g, '<br/>');
+  
+  return formatted;
 }
 
 /**
@@ -83,11 +108,10 @@ export const AiMessageRenderer: React.FC<AiMessageRendererProps> = ({ blocks, cl
           return (
             <div
               key={`text-${index}`}
-              className="ai-text text-sm leading-relaxed whitespace-pre-wrap"
+              className="ai-text text-sm leading-relaxed"
               style={{ lineHeight: '1.7' }}
-            >
-              {block.value}
-            </div>
+              dangerouslySetInnerHTML={{ __html: formatText(block.value) }}
+            />
           );
         }
 
@@ -97,6 +121,17 @@ export const AiMessageRenderer: React.FC<AiMessageRendererProps> = ({ blocks, cl
               key={`math-${index}`}
               className="ai-math my-4 overflow-x-auto"
               dangerouslySetInnerHTML={renderLatex(block.value)}
+            />
+          );
+        }
+
+        if (block.type === 'code') {
+          return (
+            <CodeCanvas
+              key={`code-${index}`}
+              code={block.value}
+              language={block.language || 'javascript'}
+              filename={block.filename}
             />
           );
         }

@@ -16,8 +16,10 @@ export interface StudyFile {
 }
 
 export interface ContentBlock {
-  type: 'text' | 'math';
+  type: 'text' | 'math' | 'code';
   value: string;
+  language?: string; // For code blocks
+  filename?: string; // Optional filename for code blocks
 }
 
 export interface ChatMessage {

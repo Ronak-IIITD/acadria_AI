@@ -78,8 +78,8 @@ const App = () => {
   return (
     <AnimatedGradientBackground>
       <div className="min-h-screen font-sans text-gray-800 dark:text-gray-200 isolate">
-        <Header user={user} onLogout={handleLogout} onLoginClick={openLoginModal} isScrolled={isScrolled} />
-        <main>
+        {!user && <Header user={user} onLogout={handleLogout} onLoginClick={openLoginModal} isScrolled={isScrolled} />}
+        <main className={user ? 'h-screen' : ''}>
           {user ? (
             <Dashboard />
           ) : (

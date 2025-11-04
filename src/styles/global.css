@@ -591,7 +591,7 @@ html.dark .chat-input:focus {
   width: 100%;
   margin: 0;
   padding: 0;
-  height: calc(100vh - 3.5rem);
+  height: 100vh;
   overflow: hidden;
 }
 
@@ -611,6 +611,26 @@ html.dark .chat-input:focus {
   );
   margin: var(--space-xl) 0;
   border: none;
+}
+
+/* AI Message Formatting */
+.ai-text strong {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  display: inline-block;
+  margin-top: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.ai-text div {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.ai-text br + br {
+  display: block;
+  content: "";
+  margin-top: 0.5rem;
 }
 
 .calm-spacer {
@@ -1306,4 +1326,40 @@ html.dark .welcome-feature-card:hover {
 
 .animate-rotate {
   animation: rotate 1s linear infinite;
+}
+
+/* Custom Range Slider for Highlight Opacity */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: currentColor;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: currentColor;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  transform: scale(1.2);
 }

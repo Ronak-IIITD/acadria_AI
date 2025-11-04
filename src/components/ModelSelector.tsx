@@ -9,7 +9,11 @@ interface ModelSelectorProps {
 const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onModelChange }) => {
   return (
     <div>
-      <label htmlFor="model-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+      <label 
+        htmlFor="model-select" 
+        className="block text-sm font-semibold mb-2"
+        style={{ color: 'var(--color-text-primary)' }}
+      >
         AI Model
       </label>
       <select

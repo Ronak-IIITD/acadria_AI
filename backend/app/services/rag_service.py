@@ -136,29 +136,61 @@ class RAGService:
     def _build_prompt(self, query: str, context: str, use_web_search: bool) -> str:
         """Build prompt with context and instructions - STRUCTURED JSON OUTPUT ONLY"""
         
-        # CRITICAL: Force model to return structured JSON with pure LaTeX
-        prompt = f"""You are an assistant that outputs ONLY JSON. ALWAYS return valid JSON (no commentary, no extra text).
+        # Detect programming language from context
+        detected_language = self._detect_language_from_context(context)
+        language_instruction = ""
+        if detected_language:
+            language_instruction = f"\n**DETECTED PROGRAMMING LANGUAGE IN DOCUMENTS: {detected_language.upper()}**\n**YOU MUST USE {detected_language.upper()} IN ALL CODE EXAMPLES - NO OTHER LANGUAGE!**\n"
+        
+        # Default to Java if no language detected but context suggests programming
+        default_language = detected_language or "java"
+        
+        # CRITICAL: Force model to return structured JSON with pure LaTeX and code blocks
+        prompt = f"""You are an AI assistant that outputs ONLY JSON. ALWAYS return valid JSON (no commentary, no extra text).
+
+**SYSTEM INSTRUCTION - MANDATORY FORMAT RULES:**
+You MUST follow these formatting rules in EVERY response:
+1. Start with bold headings using **Heading Text**
+2. Use bullet points (•) for all lists and key points
+3. Use sub-bullets (◦) for nested details
+4. ALL code examples MUST be in {default_language.upper()} unless explicitly asked otherwise
+5. Wrap ALL code in code blocks with proper language specification
+6. After explanations, ALWAYS provide real-world use cases
+7. Structure every response as: Heading → Summary → Key Points → Code Example → Use Cases
 
 **CRITICAL FORMAT REQUIREMENT:**
 Return a JSON array of content blocks with this EXACT structure:
 [
-  {{"type":"text", "value":"plain text explanation (no LaTeX)"}},
-  {{"type":"math", "value":"PURE_LATEX_EXPRESSION (no $, no $$, no HTML)"}}
+  {{"type":"text", "value":"**Heading**\\n\\nBrief summary paragraph.\\n\\n**Key Points:**\\n• Point 1\\n• Point 2"}},
+  {{"type":"code", "value":"actual code here", "language":"{default_language}"}},
+  {{"type":"text", "value":"**Real-World Use Cases:**\\n• Use case 1\\n• Use case 2"}}
 ]
+{language_instruction}
+**DEFAULT CODE LANGUAGE: {default_language.upper()}**
+- If writing code, ALWAYS default to {default_language.upper()}
+- Only use a different language if the user explicitly requests it
+- Match the exact syntax and conventions of {default_language.upper()}
+
+**SUPPORTED BLOCK TYPES:**
+1. **text** - Plain text explanations (no LaTeX, no code)
+2. **math** - Pure LaTeX mathematical expressions (no delimiters, no HTML)
+3. **code** - Code snippets with language specification
 
 **STRICT RULES:**
 1. Every math block's value must contain ONLY LaTeX (e.g., \\int_0^1 x^2 \\,dx = \\frac{{1}}{{3}}).
 2. DO NOT include HTML tags like <mb>, <m>, <div>, or markdown markers in math blocks.
 3. DO NOT include backtick fences, dollar signs, or stray asterisks in math values.
-4. If there's both explanation and equation, return TWO blocks: first text, then math.
-5. DO NOT duplicate content - write each equation exactly once.
-6. Use \\frac{{}}{{}} for fractions, \\sqrt{{}} for roots, ^{{}} for exponents, _{{}} for subscripts.
+4. Code blocks must have "type":"code", "value":"actual code", and "language":"lang_name".
+5. Supported languages: javascript, typescript, python, java, cpp, c, csharp, html, css, json, sql, bash, shell, jsx, tsx
+6. If there's explanation + equation, return TWO blocks: first text, then math.
+7. DO NOT duplicate content - write each equation or code snippet exactly once.
+8. Use \\frac{{}}{{}} for fractions, \\sqrt{{}} for roots, ^{{}} for exponents, _{{}} for subscripts.
 
 **GOOD EXAMPLE OUTPUT:**
 [
-  {{"type":"text","value":"The definite integral evaluates to:"}},
-  {{"type":"math","value":"\\int_0^1 x^2 \\, dx = \\frac{{1}}{{3}}"}},
-  {{"type":"text","value":"This follows from the power rule of integration."}}
+  {{"type":"text","value":"**Arrays in Programming**\\n\\nArrays are fundamental data structures that store collections of elements of the same type in contiguous memory locations. They provide efficient access and organization of data.\\n\\n**Key Concepts:**\\n• **Declaration and Initialization**\\n  ◦ Arrays can be declared with fixed or dynamic size\\n  ◦ Elements can be initialized upon declaration\\n• **Accessing Elements**\\n  ◦ Elements accessed using zero-based index\\n  ◦ Direct access provides O(1) time complexity\\n• **Common Operations**\\n  ◦ Adding/removing elements\\n  ◦ Traversing arrays\\n  ◦ Determining array length"}},
+  {{"type":"code","value":"public class ArrayExample {{\\n    public static void main(String[] args) {{\\n        // Declare and initialize array\\n        int[] numbers = {{10, 20, 30, 40, 50}};\\n        \\n        // Access elements\\n        System.out.println(\\"First element: \\" + numbers[0]);\\n        \\n        // Iterate through array\\n        for (int i = 0; i < numbers.length; i++) {{\\n            System.out.println(\\"Element at index \\" + i + \\": \\" + numbers[i]);\\n        }}\\n    }}\\n}}","language":"{default_language}"}},
+  {{"type":"text","value":"**Real-World Use Cases:**\\n• **Banking Systems**: Storing customer account balances and transaction history\\n• **E-commerce Platforms**: Managing product inventory and shopping cart items\\n• **Gaming Applications**: Tracking player scores, levels, and game state data\\n• **Data Analytics**: Processing large datasets for statistical analysis"}}
 ]
 
 **BAD EXAMPLES (DO NOT DO THIS):**
@@ -166,6 +198,7 @@ Return a JSON array of content blocks with this EXACT structure:
   {{"type":"math","value":"<mb>\\int x^2 dx</mb>"}},  ← NO HTML TAGS!
   {{"type":"math","value":"$$\\int x^2 dx$$"}},       ← NO DOLLAR SIGNS!
   {{"type":"text","value":"The answer is \\int x^2"}} ← LaTeX must be in math block!
+  {{"type":"text","value":"```python\\ncode```"}}     ← Code must be in code block!
 ]
 
 **Context from uploaded documents:**
@@ -178,11 +211,29 @@ Return a JSON array of content blocks with this EXACT structure:
 {query}
 
 **Instructions for answer:**
+- **MANDATORY: Follow the system formatting rules above**
+- **YOU MUST USE {default_language.upper()} for ALL code examples unless explicitly asked otherwise**
 - Provide accurate, helpful answers based on the context provided
-- If context doesn't contain relevant information, say so clearly in a text block
-- Use examples and explanations appropriate for students
-- Break down complex topics: use text blocks for explanation, math blocks for equations
-- Cite specific parts of documents in text blocks
+- **RESPONSE STRUCTURE (MUST FOLLOW):**
+  1. **Bold Heading** with topic name
+  2. Brief summary paragraph (2-3 sentences)
+  3. **Key Points** section with bullet points
+  4. Code example in {default_language.upper()} (if relevant)
+  5. **Real-World Use Cases** section with practical applications
+- **FORMATTING IN TEXT BLOCKS:**
+  * Use **bold** for all headings and subheadings (wrap in **)
+  * Use • for main bullet points
+  * Use ◦ for sub-bullets (indented with spaces)
+  * Use \\n for line breaks between sections
+  * Keep paragraphs concise and scannable
+- **CODE REQUIREMENTS:**
+  * ALL code must be in {default_language.upper()} language
+  * Include comments explaining key parts
+  * Use proper {default_language.upper()} syntax and conventions
+  * Provide complete, runnable examples when possible
+- Analyze the context to match the exact programming style shown
+- If context doesn't contain relevant information, say so clearly
+- Structure: text → code → text (use cases)
 
 If you cannot produce JSON exactly as specified, output an error object:
 {{"error":"reason for failure"}}
@@ -235,3 +286,88 @@ REMEMBER: Output ONLY the JSON array. No additional text before or after."""
     def clear_documents(self):
         """Clear all stored documents"""
         self.documents = []
+    
+    def _detect_language_from_context(self, context: str) -> str:
+        """
+        Detect programming language from code patterns in context.
+        Returns language name (java, python, cpp, javascript, etc.)
+        """
+        if not context:
+            return ""
+        
+        context_lower = context.lower()
+        
+        # Language detection patterns (ordered by specificity)
+        patterns = {
+            'java': [
+                r'public\s+class\s+\w+',
+                r'public\s+static\s+void\s+main',
+                r'System\.out\.print',
+                r'private\s+\w+\s+\w+\s*;',
+                r'@Override',
+                r'extends\s+\w+',
+                r'implements\s+\w+'
+            ],
+            'python': [
+                r'def\s+\w+\s*\(',
+                r'import\s+\w+',
+                r'from\s+\w+\s+import',
+                r'if\s+__name__\s*==\s*["\']__main__["\']',
+                r'print\s*\(',
+                r'class\s+\w+\s*\(',
+                r'self\.',
+            ],
+            'cpp': [
+                r'#include\s*<',
+                r'std::',
+                r'cout\s*<<',
+                r'cin\s*>>',
+                r'int\s+main\s*\(',
+                r'namespace\s+\w+',
+                r'template\s*<'
+            ],
+            'c': [
+                r'#include\s*<stdio\.h>',
+                r'printf\s*\(',
+                r'scanf\s*\(',
+                r'int\s+main\s*\(\s*void\s*\)',
+                r'malloc\s*\(',
+            ],
+            'javascript': [
+                r'function\s+\w+\s*\(',
+                r'const\s+\w+\s*=',
+                r'let\s+\w+\s*=',
+                r'var\s+\w+\s*=',
+                r'console\.log\s*\(',
+                r'=>\s*{',
+                r'async\s+function',
+            ],
+            'typescript': [
+                r'interface\s+\w+\s*{',
+                r'type\s+\w+\s*=',
+                r':\s*string',
+                r':\s*number',
+                r':\s*boolean',
+                r'<\w+>',
+            ]
+        }
+        
+        # Count pattern matches for each language
+        scores = {}
+        for lang, lang_patterns in patterns.items():
+            score = 0
+            for pattern in lang_patterns:
+                import re
+                if re.search(pattern, context, re.IGNORECASE | re.MULTILINE):
+                    score += 1
+            if score > 0:
+                scores[lang] = score
+        
+        # Return language with highest score
+        if scores:
+            detected = max(scores.items(), key=lambda x: x[1])
+            if detected[1] >= 2:  # Require at least 2 pattern matches
+                print(f"🔍 Detected language: {detected[0]} (confidence: {detected[1]} patterns)")
+                return detected[0]
+        
+        return ""

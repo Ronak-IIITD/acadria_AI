@@ -495,19 +495,71 @@ export const getAiResponse = async (
 Return a JSON array of content blocks with this EXACT structure:
 [
   {"type":"text", "value":"plain text explanation (no LaTeX)"},
-  {"type":"math", "value":"PURE_LATEX_EXPRESSION (no $, no $$, no HTML)"}
+  {"type":"math", "value":"PURE_LATEX_EXPRESSION (no $, no $$, no HTML)"},
+  {"type":"code", "value":"code content", "language":"javascript", "filename":"optional.js"}
 ]
+
+**SUPPORTED BLOCK TYPES:**
+1. **text** - Plain text explanations (no LaTeX, no code)
+2. **math** - Pure LaTeX mathematical expressions (no delimiters, no HTML)
+3. **code** - Code snippets with language specification
 
 **STRICT RULES:**
 1. Every math block's value must contain ONLY LaTeX (e.g., \\int_0^1 x^2 \\,dx = \\frac{1}{3}).
 2. DO NOT include HTML tags like <mb>, <m>, <div>, or markdown markers in math blocks.
 3. DO NOT include backtick fences, dollar signs, or stray asterisks in math values.
-4. If there's both explanation and equation, return TWO blocks: first text, then math.
+4. Code blocks must have "type":"code", "value":"actual code", and "language":"lang_name".
+5. Supported languages: javascript, typescript, python, java, cpp, c, csharp, html, css, json, sql, bash, shell, jsx, tsx
+6. If there's both explanation and equation, return TWO blocks: first text, then math.
+7. DO NOT duplicate content - write each equation or code snippet exactly once.
+
+**GOOD EXAMPLE OUTPUT:**
+[
+  {"type":"text","value":"Here's how to calculate the integral:"},
+  {"type":"math","value":"\\int_0^1 x^2 \\, dx = \\frac{1}{3}"},
+  {"type":"text","value":"In JavaScript, you can implement this as:"},
+  {"type":"code","value":"function integrate(a, b) {\\n  return Math.pow(b, 3) / 3 - Math.pow(a, 3) / 3;\\n}","language":"javascript"}
+]
+
+**BAD EXAMPLES (DO NOT DO THIS):**
+[
+  {"type":"math","value":"<mb>\\\\int x^2 dx</mb>"},  NO HTML TAGS!
+  {"type":"math","value":"$$\\\\int x^2 dx$$"},       NO DOLLAR SIGNS!
+  {"type":"text","value":"The answer is \\\\int x^2"} LaTeX must be in math block!
+  {"type":"text","value":"backtick-python-newline-code-backtick"}     Code must be in code block!
+]
 
 **Context from documents:**
-${context || "No documents provided."}
+\${context || "No documents provided."}
 
-**Question:** ${question}
+**Question:** \${question}
+
+**Instructions:**
+- **FORMATTING REQUIREMENTS:**
+  * Start with a clear heading/topic in bold text (use **heading** format)
+  * Follow with a brief explanatory paragraph about the topic
+  * Use bullet points (•) for listing key concepts, steps, or features
+  * Use sub-bullets (◦ or -) for nested details under main points
+  * Structure your response hierarchically: Heading → Description → Main Points → Sub-points
+- If the question asks for code examples, use code blocks with proper language specification
+- **CRITICAL: If the uploaded document contains code in a specific language (e.g., Java, Python, C++), USE THAT SAME LANGUAGE in your code examples**
+- Analyze the document context to determine the programming language being used
+- Match the coding style, syntax, and conventions of the language in the documents
+- Break down complex topics: use text blocks for explanation, math blocks for equations, code blocks for code
+- When providing code, always specify the correct language based on the document context
+
+**EXAMPLE OF GOOD FORMATTING:**
+"**Object-Oriented Programming Basics**
+
+Object-oriented programming (OOP) is a programming paradigm based on the concept of objects. This approach helps organize code into reusable components.
+
+**Key Concepts:**
+• **Classes and Objects**
+  ◦ Classes are blueprints for creating objects
+  ◦ Objects are instances of classes
+• **Encapsulation**
+  ◦ Bundling data and methods together
+  ◦ Hiding internal details"
 
 **Answer (output ONLY valid JSON array):**`;
 

@@ -463,7 +463,7 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
   const placeholderText = files.length > 0
     ? useWebSearch
       ? "Ask anything (web search enabled)..."
-      : "Ask a question about your documents..."
+      : "Ask anything from your uploaded material — I'll find it for you 📘"
     : "Upload a document to start chatting";
 
   const filteredMessages = searchQuery.trim() 
@@ -472,6 +472,27 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
 
   return (
     <div className="chat-container">
+      {/* Selected Sources Indicator */}
+      {files.length > 0 && (
+        <div className="px-6 py-3 border-b" style={{ 
+          borderColor: 'var(--color-border-light)',
+          background: 'var(--color-bg-secondary)'
+        }}>
+          <div className="flex items-center gap-2 text-xs">
+            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span style={{ color: 'var(--color-text-secondary)' }}>
+              <strong style={{ color: 'var(--color-text-primary)' }}>{files.length}</strong> source{files.length !== 1 ? 's' : ''} selected
+            </span>
+            <span className="text-gray-400">•</span>
+            <span style={{ color: 'var(--color-text-tertiary)' }} className="truncate">
+              {files.map(f => f.name).join(', ')}
+            </span>
+          </div>
+        </div>
+      )}
+      
       {/* Search Bar */}
       {messages.length > 0 && (
         <div className="relative px-6">
@@ -517,7 +538,7 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
         ) : filteredMessages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-              Start by asking a question about your documents
+              Ask anything from your uploaded material — I'll find it for you 📘
             </p>
           </div>
         ) : (

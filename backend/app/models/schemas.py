@@ -20,8 +20,10 @@ class ChatMessage(BaseModel):
 
 class ContentBlock(BaseModel):
     """Structured content block from AI response"""
-    type: Literal["text", "math"]
+    type: Literal["text", "math", "code"]
     value: str
+    language: Optional[str] = None  # For code blocks
+    filename: Optional[str] = None  # Optional filename for code blocks
 
 class ChatResponse(BaseModel):
     blocks: List[ContentBlock]  # Structured blocks instead of plain text
