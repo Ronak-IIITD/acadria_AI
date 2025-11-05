@@ -20,6 +20,12 @@ firebase-admin==6.6.0
 # Utilities
 aiofiles==24.1.0
 
+# Embeddings & Math (lightweight)
+numpy==1.26.4
+
+# Grok API (xAI)
+openai==1.54.3  # Grok uses OpenAI-compatible SDK
+
 # NOTE: Heavy ML libraries removed due to disk space constraints (5GB+):
 # - sentence-transformers, faiss-cpu, langchain (requires PyTorch ~3GB)
 # Using Gemini API directly for embeddings and chat instead

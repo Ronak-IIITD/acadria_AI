@@ -3,7 +3,8 @@ import FileUpload from './FileUpload';
 import FileList from './FileList';
 import CalmChatWindow from './CalmChatWindow';
 import type { StudyFile, AiModel } from '../types';
-import ModelSelector from './ModelSelector';
+import ChatHeader from './ChatHeader';
+import SidebarMenu from './SidebarMenu';
 import PdfViewer from './PdfViewer';
 import FlashcardGenerator from './FlashcardGenerator';
 import FlashcardDeck from './FlashcardDeck';
@@ -44,12 +45,13 @@ const Dashboard: React.FC = () => {
   const [currentTakeaways, setCurrentTakeaways] = useState<string[]>([]);
   const [isTakeawaysLoading, setIsTakeawaysLoading] = useState(false);
 
+  // UI state
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [levelUpEnabled, setLevelUpEnabled] = useState(false);
+  
   // Resizable panel state
-  const [sidebarWidth, setSidebarWidth] = useState(380);
   const [pdfWidth, setPdfWidth] = useState(50); // percentage when viewing file
-  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [isResizingPdf, setIsResizingPdf] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // New: sidebar toggle state
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Responsive: stack on small screens
@@ -59,8 +61,6 @@ const Dashboard: React.FC = () => {
     const update = () => {
       const mobile = window.innerWidth <= 768;
       setIsMobile(mobile);
-      // Auto-close sidebar on mobile
-      if (mobile) setIsSidebarOpen(false);
     };
     update();
     window.addEventListener('resize', update);
@@ -254,11 +254,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Sidebar resize handlers
-  const handleSidebarMouseDown = useCallback(() => {
-    setIsResizingSidebar(true);
-  }, []);
-
+  // Panel resize handlers
   const handlePdfMouseDown = useCallback(() => {
     setIsResizingPdf(true);
   }, []);
@@ -272,18 +268,9 @@ const Dashboard: React.FC = () => {
       }
       
       rafId = requestAnimationFrame(() => {
-        if (isResizingSidebar && containerRef.current) {
-          const containerRect = containerRef.current.getBoundingClientRect();
-          const newWidth = e.clientX - containerRect.left;
-          if (newWidth >= 280 && newWidth <= 600) {
-            setSidebarWidth(newWidth);
-          }
-        }
         if (isResizingPdf && containerRef.current) {
           const containerRect = containerRef.current.getBoundingClientRect();
-          const availableWidth = containerRect.width - sidebarWidth;
-          const pdfLeft = sidebarWidth;
-          const newPdfWidth = ((e.clientX - pdfLeft) / availableWidth) * 100;
+          const newPdfWidth = (e.clientX / containerRect.width) * 100;
           if (newPdfWidth >= 30 && newPdfWidth <= 70) {
             setPdfWidth(newPdfWidth);
           }
@@ -295,11 +282,10 @@ const Dashboard: React.FC = () => {
       if (rafId) {
         cancelAnimationFrame(rafId);
       }
-      setIsResizingSidebar(false);
       setIsResizingPdf(false);
     };
 
-    if (isResizingSidebar || isResizingPdf) {
+    if (isResizingPdf) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = 'col-resize';
@@ -315,138 +301,46 @@ const Dashboard: React.FC = () => {
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     };
-  }, [isResizingSidebar, isResizingPdf, sidebarWidth]);
+  }, [isResizingPdf]);
   
   return (
-    <div className="content-container" ref={containerRef}>
-      <div className={`flex h-full ${isMobile ? 'flex-col' : ''} relative`}>
-        {/* Hamburger Menu Button - Only show when sidebar is closed */}
-        {!isSidebarOpen && (
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="fixed top-4 left-4 z-50 p-2.5 rounded-lg transition-all duration-200 hover:scale-105"
-            style={{
-              background: 'var(--color-surface-glass)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid var(--color-border-medium)',
-              boxShadow: 'var(--shadow-md)',
-              color: 'var(--color-text-primary)'
-            }}
-            aria-label="Open sidebar"
-            title="Open Materials"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-        )}
+    <div className="content-container flex flex-col h-full" ref={containerRef}>
+      {/* Chat Header */}
+      <ChatHeader
+        onMenuClick={() => setIsMenuOpen(true)}
+        fileCount={selectedFiles.length}
+      />
 
-        {/* Left Sidebar - Materials */}
-        <aside 
-          className="flex flex-col h-full overflow-hidden"
-          style={{ 
-            width: isSidebarOpen ? (isMobile ? '100%' : `${sidebarWidth}px`) : '0px',
-            minWidth: isSidebarOpen ? (isMobile ? '100%' : '280px') : '0px',
-            maxWidth: isSidebarOpen ? (isMobile ? '100%' : '600px') : '0px',
-            opacity: isSidebarOpen ? 1 : 0,
-            transform: isSidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
-            background: 'var(--color-surface-glass)',
-            backdropFilter: 'blur(28px) saturate(120%)',
-            WebkitBackdropFilter: 'blur(28px) saturate(120%)',
-            borderRight: isSidebarOpen ? '2px solid var(--color-border-medium)' : 'none',
-            boxShadow: isSidebarOpen ? 'var(--shadow-sm)' : 'none',
-            position: isMobile ? 'absolute' : 'relative',
-            left: 0,
-            top: 0,
-            zIndex: 40,
-            transition: isResizingSidebar ? 'none' : 'opacity 0.3s ease-in-out, transform 0.3s ease-in-out',
-            willChange: isResizingSidebar ? 'width' : 'auto'
-          }}
-        >
-          <div className="px-4 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--color-border-medium)' }}>
-            <div className="flex-1">
-              <h2 className="text-base font-semibold" style={{ 
-                color: 'var(--color-text-primary)',
-                letterSpacing: '-0.01em' 
-              }}>
-                Study Materials
-              </h2>
-              <p className="mt-1 text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
-                Upload & organize your content
-              </p>
-            </div>
-            {/* Close button inside header */}
-            <button
-              onClick={() => setIsSidebarOpen(false)}
-              className="p-1.5 rounded-lg transition-all duration-200 hover:bg-gray-200 dark:hover:bg-gray-700"
-              style={{
-                color: 'var(--color-text-secondary)'
-              }}
-              aria-label="Close sidebar"
-              title="Close Materials"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          
-          <div className="px-4 py-4">
-            <FileUpload onFilesAdded={handleFilesAdded} />
-          </div>
-          
-          <div className="flex-grow overflow-y-auto px-4 pb-4">
-            <FileList 
-              files={files} 
-              selectedFileIds={selectedFileIds}
-              onToggleFile={handleFileToggle}
-              onSelectAll={handleSelectAllFiles}
-              onDelete={handleFileDelete} 
-              onView={handleFileView}
-              flashcardCounts={Object.fromEntries(
-                Object.entries(flashcards).map(([docId, cards]) => [docId, cards.length])
-              )}
-              onGenerateFlashcards={handleGenerateFlashcards}
-              onStudyFlashcards={handleStudyFlashcards}
-              onGenerateQuiz={handleGenerateQuiz}
-              onGenerateSummary={handleGenerateSummary}
-              onGenerateKeyTakeaways={handleGenerateKeyTakeaways}
-            />
-          </div>
-          
-          <div className="px-4 py-4 border-t" style={{ borderColor: 'var(--color-border-medium)' }}>
-            <ModelSelector selectedModel={selectedModel} onModelChange={setSelectedModel} />
-          </div>
-        </aside>
-
-        {/* Resize Handle for Sidebar */}
-        {!isMobile && isSidebarOpen && (
-          <div
-            onMouseDown={handleSidebarMouseDown}
-            className="w-1 hover:w-1.5 bg-gray-400/60 dark:bg-gray-600/50 hover:bg-purple-400 dark:hover:bg-purple-500 cursor-col-resize transition-all flex-shrink-0 relative group"
-            style={{ zIndex: 10 }}
-          >
-            <div className="absolute inset-y-0 -left-1 -right-1" />
-          </div>
+      {/* Sidebar Menu Overlay */}
+      <SidebarMenu
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        files={files}
+        selectedFileIds={selectedFileIds}
+        onToggleFile={handleFileToggle}
+        onSelectAll={handleSelectAllFiles}
+        onFileDelete={handleFileDelete}
+        onFileView={handleFileView}
+        onFilesAdded={handleFilesAdded}
+        flashcardCounts={Object.fromEntries(
+          Object.entries(flashcards).map(([docId, cards]) => [docId, cards.length])
         )}
-        
-        {/* Middle - PDF Viewer (only when file is being viewed) */}
-        {viewingFile && (
+        onGenerateFlashcards={handleGenerateFlashcards}
+        onStudyFlashcards={handleStudyFlashcards}
+        onGenerateQuiz={handleGenerateQuiz}
+        onGenerateSummary={handleGenerateSummary}
+        onGenerateTakeaways={handleGenerateKeyTakeaways}
+      />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* PDF Viewer (when file is being viewed) */}
+        {viewingFile && !isMobile && (
           <>
-            <aside 
+            <div 
               className="flex flex-col h-full overflow-hidden" 
               style={{ 
-                width: isMobile ? '100%' : `${pdfWidth}%`,
+                width: `${pdfWidth}%`,
                 background: 'var(--color-surface-glass)',
                 backdropFilter: 'blur(28px) saturate(120%)',
                 WebkitBackdropFilter: 'blur(28px) saturate(120%)',
@@ -460,24 +354,22 @@ const Dashboard: React.FC = () => {
                 onAskAboutSelection={handleAskAboutSelection}
                 isInline={true}
               />
-            </aside>
+            </div>
 
             {/* Resize Handle for PDF */}
-            {!isMobile && (
-              <div
-                onMouseDown={handlePdfMouseDown}
-                className="w-1 hover:w-1.5 bg-gray-400/60 dark:bg-gray-600/50 hover:bg-purple-400 dark:hover:bg-purple-500 cursor-col-resize transition-all flex-shrink-0 relative group"
-                style={{ zIndex: 10 }}
-              >
-                <div className="absolute inset-y-0 -left-1 -right-1" />
-              </div>
-            )}
+            <div
+              onMouseDown={handlePdfMouseDown}
+              className="w-1 hover:w-1.5 bg-gray-400/60 dark:bg-gray-600/50 hover:bg-purple-400 dark:hover:bg-purple-500 cursor-col-resize transition-all flex-shrink-0 relative group"
+              style={{ zIndex: 10 }}
+            >
+              <div className="absolute inset-y-0 -left-1 -right-1" />
+            </div>
           </>
         )}
         
-        {/* Right - Chat Window */}
-        <main 
-          className="flex flex-col flex-1" 
+        {/* Chat Window */}
+        <div 
+          className="flex-1 flex flex-col" 
           style={{ 
             minWidth: 0,
             background: 'var(--color-surface-glass)',
@@ -489,10 +381,23 @@ const Dashboard: React.FC = () => {
           <CalmChatWindow
             files={selectedFiles}
             model={selectedModel}
+            onModelChange={setSelectedModel}
+            levelUpEnabled={levelUpEnabled}
+            onToggleLevelUp={setLevelUpEnabled}
             pendingQuestion={pendingQuestion}
             onQuestionSent={() => setPendingQuestion('')}
+            onQuizClick={() => {
+              if (selectedFiles.length > 0) {
+                handleGenerateQuiz(selectedFiles[0]);
+              }
+            }}
+            onFlashcardsClick={() => {
+              if (selectedFiles.length > 0) {
+                handleGenerateFlashcards(selectedFiles[0]);
+              }
+            }}
           />
-        </main>
+        </div>
       </div>
       
       {generatingFor && (

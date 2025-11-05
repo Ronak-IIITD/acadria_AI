@@ -370,7 +370,8 @@ export const getAiSummary = async (
 export const getAiResponse = async (
     question: string, 
     contextFiles: StudyFile[], 
-    performWebSearch: boolean
+    performWebSearch: boolean,
+    selectedModel: string = 'gemini'  // ← NEW: Model selection (gemini/grok)
 ): Promise<{ blocks: ContentBlock[], suggestions: { displayText: string; query: string }[], sources: string[] }> => {
     // Check if backend API is available
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
@@ -384,7 +385,8 @@ export const getAiResponse = async (
             },
             body: JSON.stringify({
                 text: question,
-                use_web_search: performWebSearch
+                use_web_search: performWebSearch,
+                model: selectedModel  // ← NEW: Send model to backend
             })
         });
 

@@ -17,6 +17,7 @@ class DocumentUpload(BaseModel):
 class ChatMessage(BaseModel):
     text: str
     use_web_search: bool = False
+    model: Optional[str] = "gemini"  # "gemini" or "grok"
 
 class ContentBlock(BaseModel):
     """Structured content block from AI response"""

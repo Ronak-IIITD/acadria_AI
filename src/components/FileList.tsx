@@ -258,7 +258,7 @@ const FileList: React.FC<FileListProps> = ({
                   </div>
                 </button>
                 
-                <div style={{ height: '1.5rem', width: '1.5rem', flexShrink: 0, color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                <div style={{ height: '1.5rem', width: '1.5rem', flexShrink: 0, color: 'var(--color-text-primary)', marginTop: '2px' }}>
                   <FileIcon type={file.type} className="h-6 w-6" />
                 </div>
                 <div style={{ minWidth: 0, flex: 1 }}>
@@ -272,113 +272,294 @@ const FileList: React.FC<FileListProps> = ({
                       display: '-webkit-box',
                       WebkitLineClamp: 2,
                       WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                      opacity: 1
+                      overflow: 'hidden'
                     }} 
                     title={file.name}
                   >
                     {file.name}
                   </p>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '2px', fontWeight: 500 }}>
                     {file.type} - {formatBytes(file.size)}
                   </p>
                 </div>
               </div>
-              {/* Action buttons container - now below the file info */}
-              <div className="flex items-center gap-2 flex-wrap justify-end transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
+              {/* Action buttons container - horizontal scrollable layout */}
+              <div className="transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 pt-2">
                 {/* Flashcard Badge - Always visible if cards exist */}
                 {flashcardCounts[file.id] > 0 && (
-                  <div className="opacity-100 flex items-center gap-1 bg-purple-100 dark:bg-purple-900/40 px-2 py-1 rounded-full">
-                    <SparklesIcon className="h-3 w-3 text-purple-600 dark:text-purple-400" />
-                    <span className="text-xs font-semibold text-purple-700 dark:text-purple-300">
-                      {flashcardCounts[file.id]}
+                  <div className="opacity-100 flex items-center gap-1.5 bg-purple-50 dark:bg-purple-900/20 px-2.5 py-1 rounded-md border border-purple-100 dark:border-purple-800/30 mb-2 w-fit">
+                    <SparklesIcon className="h-3 w-3 text-purple-500 dark:text-purple-400" />
+                    <span className="text-xs font-semibold text-purple-600 dark:text-purple-300">
+                      {flashcardCounts[file.id]} cards
                     </span>
                   </div>
                 )}
                 
-                {/* Study Flashcards Button */}
-                {onStudyFlashcards && flashcardCounts[file.id] > 0 && (
+                {/* Main action buttons - horizontal scrollable row */}
+                <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  {/* Generate Flashcards Button */}
+                  {onGenerateFlashcards && (
+                    <button
+                      onClick={() => onGenerateFlashcards(file)}
+                      className="px-2.5 py-1.5 font-medium rounded-md transition-all text-left flex-shrink-0"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(37, 99, 235, 0.12) 100%)',
+                        color: 'var(--color-text-primary)',
+                        border: '1px solid rgba(59, 130, 246, 0.2)',
+                        transform: 'translateZ(0)',
+                        backfaceVisibility: 'hidden'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.18) 0%, rgba(37, 99, 235, 0.18) 100%)';
+                        e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(-1px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(37, 99, 235, 0.12) 100%)';
+                        e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.2)';
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(0)';
+                      }}
+                      onMouseDown={(e) => {
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(0) scale(0.98)';
+                      }}
+                      onMouseUp={(e) => {
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(-1px) scale(1)';
+                      }}
+                      aria-label={`Generate flashcards for ${file.name}`}
+                      title="Generate flashcards with AI"
+                    >
+                      <div className="flex items-center gap-1.5" style={{ color: '#3b82f6' }}>
+                        <SparklesIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="text-xs whitespace-nowrap">Cards</span>
+                      </div>
+                    </button>
+                  )}
+                  
+                  {/* Generate Quiz Button */}
+                  {onGenerateQuiz && (
+                    <button
+                      onClick={() => onGenerateQuiz(file)}
+                      className="px-2.5 py-1.5 font-medium rounded-md transition-all text-left flex-shrink-0"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(79, 70, 229, 0.12) 100%)',
+                        color: 'var(--color-text-primary)',
+                        border: '1px solid rgba(99, 102, 241, 0.2)',
+                        transform: 'translateZ(0)',
+                        backfaceVisibility: 'hidden'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.18) 0%, rgba(79, 70, 229, 0.18) 100%)';
+                        e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.3)';
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(-1px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(79, 70, 229, 0.12) 100%)';
+                        e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.2)';
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(0)';
+                      }}
+                      onMouseDown={(e) => {
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(0) scale(0.98)';
+                      }}
+                      onMouseUp={(e) => {
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(-1px) scale(1)';
+                      }}
+                      aria-label={`Generate quiz for ${file.name}`}
+                      title="Generate quiz with AI"
+                    >
+                      <div className="flex items-center gap-1.5" style={{ color: '#6366f1' }}>
+                        <QuizIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="text-xs whitespace-nowrap">Quiz</span>
+                      </div>
+                    </button>
+                  )}
+                  
+                  {/* Generate Summary Button */}
+                  {onGenerateSummary && (
+                    <button
+                      onClick={() => onGenerateSummary(file)}
+                      className="px-2.5 py-1.5 font-medium rounded-md transition-all text-left flex-shrink-0"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(22, 163, 74, 0.12) 100%)',
+                        color: 'var(--color-text-primary)',
+                        border: '1px solid rgba(34, 197, 94, 0.2)',
+                        transform: 'translateZ(0)',
+                        backfaceVisibility: 'hidden'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, rgba(34, 197, 94, 0.18) 0%, rgba(22, 163, 74, 0.18) 100%)';
+                        e.currentTarget.style.borderColor = 'rgba(34, 197, 94, 0.3)';
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(-1px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(22, 163, 74, 0.12) 100%)';
+                        e.currentTarget.style.borderColor = 'rgba(34, 197, 94, 0.2)';
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(0)';
+                      }}
+                      onMouseDown={(e) => {
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(0) scale(0.98)';
+                      }}
+                      onMouseUp={(e) => {
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(-1px) scale(1)';
+                      }}
+                      aria-label={`Generate summary for ${file.name}`}
+                      title="Generate summary with AI"
+                    >
+                      <div className="flex items-center gap-1.5" style={{ color: '#22c55e' }}>
+                        <SummarizeIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="text-xs whitespace-nowrap">Summary</span>
+                      </div>
+                    </button>
+                  )}
+                  
+                  {/* Generate Key Takeaways Button */}
+                  {onGenerateKeyTakeaways && (
+                    <button
+                      onClick={() => onGenerateKeyTakeaways(file)}
+                      className="px-2.5 py-1.5 font-medium rounded-md transition-all text-left flex-shrink-0"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(251, 146, 60, 0.12) 0%, rgba(249, 115, 22, 0.12) 100%)',
+                        color: 'var(--color-text-primary)',
+                        border: '1px solid rgba(251, 146, 60, 0.2)',
+                        transform: 'translateZ(0)',
+                        backfaceVisibility: 'hidden'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, rgba(251, 146, 60, 0.18) 0%, rgba(249, 115, 22, 0.18) 100%)';
+                        e.currentTarget.style.borderColor = 'rgba(251, 146, 60, 0.3)';
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(-1px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, rgba(251, 146, 60, 0.12) 0%, rgba(249, 115, 22, 0.12) 100%)';
+                        e.currentTarget.style.borderColor = 'rgba(251, 146, 60, 0.2)';
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(0)';
+                      }}
+                      onMouseDown={(e) => {
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(0) scale(0.98)';
+                      }}
+                      onMouseUp={(e) => {
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(-1px) scale(1)';
+                      }}
+                      aria-label={`Generate key takeaways for ${file.name}`}
+                      title="Generate key takeaways with AI"
+                    >
+                      <div className="flex items-center gap-1.5" style={{ color: '#fb923c' }}>
+                        <LightbulbIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="text-xs whitespace-nowrap">Takeaways</span>
+                      </div>
+                    </button>
+                  )}
+                  
+                  {/* Study Flashcards Button */}
+                  {onStudyFlashcards && flashcardCounts[file.id] > 0 && (
+                    <button
+                      onClick={() => onStudyFlashcards(file)}
+                      className="px-2.5 py-1.5 font-medium rounded-md transition-all flex-shrink-0"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(147, 51, 234, 0.12) 100%)',
+                        color: 'var(--color-text-primary)',
+                        border: '1px solid rgba(168, 85, 247, 0.2)',
+                        transform: 'translateZ(0)',
+                        backfaceVisibility: 'hidden'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, rgba(168, 85, 247, 0.18) 0%, rgba(147, 51, 234, 0.18) 100%)';
+                        e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.3)';
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(-1px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(147, 51, 234, 0.12) 100%)';
+                        e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.2)';
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(0)';
+                      }}
+                      onMouseDown={(e) => {
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(0) scale(0.98)';
+                      }}
+                      onMouseUp={(e) => {
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(-1px) scale(1)';
+                      }}
+                      aria-label={`Study flashcards for ${file.name}`}
+                      title={`Study ${flashcardCounts[file.id]} flashcards`}
+                    >
+                      <div className="flex items-center gap-1.5" style={{ color: '#a855f7' }}>
+                        <svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                        <span className="text-xs whitespace-nowrap">Study</span>
+                      </div>
+                    </button>
+                  )}
+                  
+                  {/* View button */}
+                  {onView && (
+                    <button
+                      onClick={() => onView(file)}
+                      className="p-1.5 font-medium rounded-md transition-all flex-shrink-0"
+                      style={{
+                        background: 'var(--color-bg-elevated)',
+                        color: 'var(--color-text-secondary)',
+                        border: '1px solid var(--color-border-medium)',
+                        transform: 'translateZ(0)',
+                        backfaceVisibility: 'hidden'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'var(--color-bg-hover)';
+                        e.currentTarget.style.color = 'var(--color-text-primary)';
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(-1px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'var(--color-bg-elevated)';
+                        e.currentTarget.style.color = 'var(--color-text-secondary)';
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(0)';
+                      }}
+                      onMouseDown={(e) => {
+                        e.currentTarget.style.transform = 'translateZ(0) scale(0.95)';
+                      }}
+                      onMouseUp={(e) => {
+                        e.currentTarget.style.transform = 'translateZ(0) translateY(-1px) scale(1)';
+                      }}
+                      aria-label={`View ${file.name}`}
+                      title="View document"
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </button>
+                  )}
+                  
+                  {/* Delete button */}
                   <button
-                    onClick={() => onStudyFlashcards(file)}
-                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-purple-500 hover:bg-purple-500/10 rounded-full transition-all"
-                    aria-label={`Study flashcards for ${file.name}`}
-                    title={`Study ${flashcardCounts[file.id]} flashcards`}
+                    onClick={() => setFileToDelete(file)}
+                    className="p-1.5 font-medium rounded-md transition-all flex-shrink-0"
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.08)',
+                      color: '#ef4444',
+                      border: '1px solid rgba(239, 68, 68, 0.2)',
+                      transform: 'translateZ(0)',
+                      backfaceVisibility: 'hidden'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)';
+                      e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                      e.currentTarget.style.transform = 'translateZ(0) translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
+                      e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                      e.currentTarget.style.transform = 'translateZ(0) translateY(0)';
+                    }}
+                    onMouseDown={(e) => {
+                      e.currentTarget.style.transform = 'translateZ(0) scale(0.95)';
+                    }}
+                    onMouseUp={(e) => {
+                      e.currentTarget.style.transform = 'translateZ(0) translateY(-1px) scale(1)';
+                    }}
+                    aria-label={`Delete ${file.name}`}
+                    title="Delete document"
                   >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
+                    <TrashIcon className="h-3.5 w-3.5" />
                   </button>
-                )}
-                
-                {/* Generate Flashcards Button */}
-                {onGenerateFlashcards && (
-                  <button
-                    onClick={() => onGenerateFlashcards(file)}
-                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 rounded-full transition-all"
-                    aria-label={`Generate flashcards for ${file.name}`}
-                    title="Generate flashcards with AI"
-                  >
-                    <SparklesIcon className="h-4 w-4" />
-                  </button>
-                )}
-                
-                {/* Generate Quiz Button */}
-                {onGenerateQuiz && (
-                  <button
-                    onClick={() => onGenerateQuiz(file)}
-                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-indigo-500 hover:bg-indigo-500/10 rounded-full transition-all"
-                    aria-label={`Generate quiz for ${file.name}`}
-                    title="Generate quiz with AI"
-                  >
-                    <QuizIcon className="h-4 w-4" />
-                  </button>
-                )}
-                
-                {/* Generate Summary Button */}
-                {onGenerateSummary && (
-                  <button
-                    onClick={() => onGenerateSummary(file)}
-                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-green-500 hover:bg-green-500/10 rounded-full transition-all"
-                    aria-label={`Generate summary for ${file.name}`}
-                    title="Generate summary with AI"
-                  >
-                    <SummarizeIcon className="h-4 w-4" />
-                  </button>
-                )}
-                
-                {/* Generate Key Takeaways Button */}
-                {onGenerateKeyTakeaways && (
-                  <button
-                    onClick={() => onGenerateKeyTakeaways(file)}
-                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-yellow-500 hover:bg-yellow-500/10 rounded-full transition-all"
-                    aria-label={`Generate key takeaways for ${file.name}`}
-                    title="Generate key takeaways with AI"
-                  >
-                    <LightbulbIcon className="h-4 w-4" />
-                  </button>
-                )}
-                
-                {onView && (
-                  <button
-                    onClick={() => onView(file)}
-                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 rounded-full transition-all"
-                    aria-label={`View ${file.name}`}
-                    title="View document"
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  </button>
-                )}
-                <button
-                  onClick={() => setFileToDelete(file)}
-                  className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all"
-                  aria-label={`Delete ${file.name}`}
-                  title="Delete document"
-                >
-                  <TrashIcon className="h-4 w-4" />
-                </button>
+                </div>
               </div>
             </li>
           ))}

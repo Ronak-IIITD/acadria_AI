@@ -17,12 +17,19 @@ import { ThemeContext } from '../contexts/ThemeContext';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import CodeCanvas from './CodeCanvas';
+import StudyToolsBar from './StudyToolsBar';
+import ChatInputArea from './ChatInputArea';
 
 interface ChatWindowProps {
   files: StudyFile[];
   model: AiModel;
+  onModelChange: (model: AiModel) => void;
+  levelUpEnabled: boolean;
+  onToggleLevelUp: (enabled: boolean) => void;
   pendingQuestion?: string;
   onQuestionSent?: () => void;
+  onQuizClick?: () => void;
+  onFlashcardsClick?: () => void;
 }
 
 // Type definitions for the Web Speech API
@@ -143,7 +150,17 @@ const WelcomeState: React.FC = () => (
   </div>
 );
 
-const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQuestionSent }) => {
+const CalmChatWindow: React.FC<ChatWindowProps> = ({ 
+  files, 
+  model,
+  onModelChange,
+  levelUpEnabled,
+  onToggleLevelUp,
+  pendingQuestion, 
+  onQuestionSent,
+  onQuizClick,
+  onFlashcardsClick
+}) => {
   const { theme } = useContext(ThemeContext);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -299,8 +316,14 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
 
     try {
       console.log('📤 [CalmChat] Sending question to AI:', textToSend);
+      console.log('🤖 [CalmChat] Using model:', model);
       const performWebSearch = useWebSearch;
-      const { blocks, suggestions: followUpSuggestions, sources } = await getAiResponse(textToSend, files, performWebSearch);
+      const { blocks, suggestions: followUpSuggestions, sources } = await getAiResponse(
+        textToSend, 
+        files, 
+        performWebSearch,
+        model  // ← Pass selected model to API
+      );
       
       console.log('📥 [CalmChat] Received response:', { blocks, followUpSuggestions, sources });
       if (!blocks || blocks.length === 0) {
@@ -472,26 +495,15 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
 
   return (
     <div className="chat-container">
-      {/* Selected Sources Indicator */}
-      {files.length > 0 && (
-        <div className="px-6 py-3 border-b" style={{ 
-          borderColor: 'var(--color-border-light)',
-          background: 'var(--color-bg-secondary)'
-        }}>
-          <div className="flex items-center gap-2 text-xs">
-            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span style={{ color: 'var(--color-text-secondary)' }}>
-              <strong style={{ color: 'var(--color-text-primary)' }}>{files.length}</strong> source{files.length !== 1 ? 's' : ''} selected
-            </span>
-            <span className="text-gray-400">•</span>
-            <span style={{ color: 'var(--color-text-tertiary)' }} className="truncate">
-              {files.map(f => f.name).join(', ')}
-            </span>
-          </div>
-        </div>
-      )}
+      {/* Study Tools Bar */}
+      <StudyToolsBar
+        onQuizClick={() => onQuizClick?.()}
+        onFlashcardsClick={() => onFlashcardsClick?.()}
+        onMindMapClick={() => {/* TODO */}}
+        onTimelineClick={() => {/* TODO */}}
+        onSearchClick={() => {/* TODO */}}
+        disabled={files.length === 0}
+      />
       
       {/* Search Bar */}
       {messages.length > 0 && (
@@ -622,65 +634,28 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQ
       </div>
 
       {/* Input Area */}
-      <div className="space-y-3 px-6">
-        {/* Web Search Toggle */}
-        <div className="flex items-center justify-end px-2">
-          <ToggleSwitch
-            id="web-search-toggle"
-            checked={useWebSearch}
-            onChange={setUseWebSearch}
-            label="Web Search"
-            disabled={isLoading}
-          />
-        </div>
-
-        <div className="relative flex items-center">
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            placeholder={placeholderText}
-            className="w-full px-4 py-3.5 pr-14 rounded-xl resize-none text-sm"
-            style={{
-              background: 'var(--color-bg-elevated)',
-              border: '1px solid var(--color-border-soft)',
-              color: 'var(--color-text-primary)',
-              minHeight: '52px',
-              maxHeight: '200px',
-              outline: 'none'
-            }}
-            rows={1}
-            disabled={files.length === 0 || isLoading}
-          />
-          
-          <button
-            onClick={() => handleSend()}
-            disabled={isLoading || input.trim() === '' || files.length === 0 || isOverLimit}
-            className="absolute right-2.5 p-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
-            style={{
-              background: 'rgb(59, 130, 246)',
-              color: 'white',
-              top: '50%',
-              transform: 'translateY(-50%)'
-            }}
-            aria-label="Send message"
-          >
-            <SendIcon className="h-4 w-4" />
-          </button>
-        </div>
-        <p className="text-xs text-center" style={{ color: 'var(--color-text-tertiary)' }}>
-          {useWebSearch 
-            ? 'Web search enabled - AI will search the internet for answers'
-            : 'AI responses are based on your uploaded documents'
+      <ChatInputArea
+        input={input}
+        onInputChange={setInput}
+        onSend={handleSend}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
           }
-        </p>
-      </div>
+        }}
+        isLoading={isLoading}
+        disabled={files.length === 0 || isOverLimit}
+        placeholder={placeholderText}
+        selectedModel={model}
+        onModelChange={onModelChange}
+        levelUpEnabled={levelUpEnabled}
+        onToggleLevelUp={onToggleLevelUp}
+        selectedFiles={files}
+        useWebSearch={useWebSearch}
+        onToggleWebSearch={setUseWebSearch}
+        textareaRef={textareaRef}
+      />
 
       {/* Summary Modal */}
       {isSummaryModalOpen && (

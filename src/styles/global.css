@@ -394,13 +394,13 @@ html.dark .glass-card:hover::before {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: var(--space-md) 0 var(--space-md) 0;
+  padding: 0 0 var(--space-md) 0;
   gap: var(--space-md);
 }
 
 @media (min-width: 1024px) {
   .chat-container {
-    padding: var(--space-lg) 0 var(--space-lg) 0;
+    padding: 0 0 var(--space-lg) 0;
     gap: var(--space-lg);
   }
 }

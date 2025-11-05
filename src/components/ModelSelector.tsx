@@ -27,11 +27,20 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onModelCha
           color: 'var(--color-text-primary)'
         }}
       >
-        {Object.values(AiModel).map((model) => (
-          <option key={model} value={model} className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100">
-            {model === AiModel.GEMINI_FLASH ? "Gemini 2.5 Flash" : model}
-          </option>
-        ))}
+        {Object.values(AiModel).map((model) => {
+          const modelNames = {
+            [AiModel.GEMINI_FLASH]: "Gemini 2.0 Flash",
+            [AiModel.GROK]: "Grok (xAI)",
+            [AiModel.GPT4ALL]: "GPT4All (Local)",
+            [AiModel.LLAMA2]: "LLaMA 2 (Local)",
+          };
+          
+          return (
+            <option key={model} value={model} className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100">
+              {modelNames[model] || model}
+            </option>
+          );
+        })}
       </select>
     </div>
   );

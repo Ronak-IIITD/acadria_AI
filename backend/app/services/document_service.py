@@ -6,15 +6,18 @@ from docx import Document
 import markdown
 import re
 from app.services.rag_service import RAGService
+from app.services.embedding_service import get_embedding_service
 
 class DocumentService:
     """
     Document processing service.
     Extracts text from various file formats and splits into chunks.
+    Now includes embedding generation for semantic search.
     """
     
     def __init__(self):
         self.rag_service = RAGService()
+        self.embedding_service = get_embedding_service()
         
         # Simple text chunking parameters
         self.chunk_size = 1000
@@ -43,17 +46,25 @@ class DocumentService:
             # Split text into chunks
             chunks = self._split_text(text)
             
-            # Create document chunks with metadata
+            print(f"📄 Generating embeddings for {len(chunks)} chunks from {filename}...")
+            
+            # Generate embeddings for all chunks
+            embeddings = self.embedding_service.batch_generate_embeddings(chunks)
+            
+            # Create document chunks with metadata AND embeddings
             doc_chunks = [
                 {
                     "content": chunk,
+                    "embedding": embedding,  # ← NEW: Add embedding vector
                     "document_id": doc_id,
                     "filename": filename,
                     "chunk_index": i,
                     "total_chunks": len(chunks)
                 }
-                for i, chunk in enumerate(chunks)
+                for i, (chunk, embedding) in enumerate(zip(chunks, embeddings))
             ]
+            
+            print(f"✅ Generated {len(embeddings)} embeddings for {filename}")
             
             # Add to RAG service
             self.rag_service.add_documents_to_store(doc_chunks)
