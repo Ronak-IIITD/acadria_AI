@@ -1,4 +1,4 @@
-import React from 'react';
+import { FC } from 'react';
 import { AiModel } from '../types';
 
 interface ModelSelectorProps {
@@ -6,7 +6,7 @@ interface ModelSelectorProps {
   onModelChange: (model: AiModel) => void;
 }
 
-const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onModelChange }) => {
+const ModelSelector: FC<ModelSelectorProps> = ({ selectedModel, onModelChange }) => {
   return (
     <div>
       <label 
@@ -29,9 +29,9 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onModelCha
       >
         {Object.values(AiModel).map((model) => {
           const modelNames = {
-            [AiModel.GEMINI_FLASH]: "Gemini 2.5 Flash ⚡",
-            [AiModel.GEMINI_PRO]: "Gemini 2.5 Pro 🚀",
-            [AiModel.GROK]: "Grok 4 (xAI) 🤖",
+            [AiModel.GEMINI_FLASH]: "Gemini 2.5 Flash",
+            [AiModel.GEMINI_PRO]: "Gemini 2.5 Pro",
+            [AiModel.GROK]: "Grok 4",
             [AiModel.GPT4ALL]: "GPT4All (Local)",
             [AiModel.LLAMA2]: "LLaMA 2 (Local)",
           };

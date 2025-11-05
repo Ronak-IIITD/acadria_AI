@@ -18,10 +18,9 @@ const StudyToolsBar: React.FC<StudyToolsBarProps> = ({
   disabled = false
 }) => {
   return (
-    <div className="flex items-center gap-2 px-4 py-3 border-b overflow-x-auto" style={{
+    <div className="flex items-center gap-2 px-4 py-3 border-b overflow-x-hidden" style={{
       borderColor: 'var(--color-border-light)',
       background: 'var(--color-bg-secondary)',
-      scrollbarWidth: 'thin',
       minHeight: '52px'
     }}>
       {/* Chat - Active */}

@@ -46,17 +46,24 @@ class RAGService:
         else:
             print(f"⚠️  Unknown model: {model_name}, keeping current model")
     
-    async def generate_response(self, query: str, use_web_search: bool = False) -> ChatResponse:
+    async def generate_response(self, query: str, use_web_search: bool = False, level_up_mode: bool = False) -> ChatResponse:
         """
         Generate AI response using retrieved context.
         Returns structured JSON blocks with validated LaTeX.
+        
+        Args:
+            query: User's question
+            use_web_search: Enable web search (if implemented)
+            level_up_mode: Enable Level Up+ mode for enhanced, detailed responses
         """
         try:
-            # Get relevant context using keyword search
-            context, sources = self._retrieve_context(query)
+            # Get relevant context using semantic search
+            # In Level Up+ mode, retrieve MORE context chunks
+            top_k = 5 if level_up_mode else 3
+            context, sources = self._retrieve_context(query, top_k=top_k)
             
             # Build prompt with structured JSON instruction
-            prompt = self._build_prompt(query, context, use_web_search)
+            prompt = self._build_prompt(query, context, use_web_search, level_up_mode)
             
             # Generate response
             response = self.model.generate_content(prompt)
@@ -170,7 +177,7 @@ class RAGService:
             # Fallback to empty context
             return "", []
     
-    def _build_prompt(self, query: str, context: str, use_web_search: bool) -> str:
+    def _build_prompt(self, query: str, context: str, use_web_search: bool, level_up_mode: bool = False) -> str:
         """Build prompt with context and instructions - STRUCTURED JSON OUTPUT ONLY"""
         
         # Detect programming language from context
@@ -182,9 +189,23 @@ class RAGService:
         # Default to Java if no language detected but context suggests programming
         default_language = detected_language or "java"
         
+        # Level Up+ mode adjustments
+        depth_instruction = ""
+        if level_up_mode:
+            depth_instruction = """
+**🚀 LEVEL UP+ MODE ACTIVATED**
+You are in ENHANCED LEARNING MODE. Provide:
+1. **Deeper Explanations**: Go beyond surface-level - explain WHY and HOW things work
+2. **More Examples**: Include 2-3 diverse examples showing different use cases
+3. **Expert Insights**: Add advanced tips, best practices, and common pitfalls
+4. **Comprehensive Coverage**: Cover edge cases and alternative approaches
+5. **Learning Path**: Suggest related topics to explore next
+6. **Industry Context**: Explain real-world applications and industry standards
+"""
+        
         # CRITICAL: Force model to return structured JSON with pure LaTeX and code blocks
         prompt = f"""You are an AI assistant that outputs ONLY JSON. ALWAYS return valid JSON (no commentary, no extra text).
-
+{depth_instruction}
 **SYSTEM INSTRUCTION - MANDATORY FORMAT RULES:**
 You MUST follow these formatting rules in EVERY response:
 1. Start with bold headings using **Heading Text**
@@ -193,7 +214,7 @@ You MUST follow these formatting rules in EVERY response:
 4. ALL code examples MUST be in {default_language.upper()} unless explicitly asked otherwise
 5. Wrap ALL code in code blocks with proper language specification
 6. After explanations, ALWAYS provide real-world use cases
-7. Structure every response as: Heading → Summary → Key Points → Code Example → Use Cases
+7. Structure every response as: Heading → Summary → Key Points → Code Example → Use Cases{' → Advanced Insights (Level Up+ only)' if level_up_mode else ''}
 
 **CRITICAL FORMAT REQUIREMENT:**
 Return a JSON array of content blocks with this EXACT structure:
@@ -253,24 +274,28 @@ Return a JSON array of content blocks with this EXACT structure:
 - Provide accurate, helpful answers based on the context provided
 - **RESPONSE STRUCTURE (MUST FOLLOW):**
   1. **Bold Heading** with topic name
-  2. Brief summary paragraph (2-3 sentences)
-  3. **Key Points** section with bullet points
-  4. Code example in {default_language.upper()} (if relevant)
-  5. **Real-World Use Cases** section with practical applications
+  2. Brief summary paragraph ({f'4-5 sentences with depth' if level_up_mode else '2-3 sentences'})
+  3. **Key Points** section with bullet points ({f'5-7 detailed points' if level_up_mode else '3-5 points'})
+  4. Code example in {default_language.upper()} (if relevant) - {f'Include 2-3 examples showing different approaches' if level_up_mode else 'Provide clear example'}
+  5. **Real-World Use Cases** section with practical applications ({f'4-5 industry examples' if level_up_mode else '2-3 examples'})
+  {f'6. **Advanced Insights** - Best practices, common pitfalls, optimization tips' if level_up_mode else ''}
+  {f'7. **Next Steps** - Related topics to explore for deeper learning' if level_up_mode else ''}
 - **FORMATTING IN TEXT BLOCKS:**
   * Use **bold** for all headings and subheadings (wrap in **)
   * Use • for main bullet points
   * Use ◦ for sub-bullets (indented with spaces)
   * Use \\n for line breaks between sections
-  * Keep paragraphs concise and scannable
+  * Keep paragraphs {'detailed but well-structured' if level_up_mode else 'concise and scannable'}
 - **CODE REQUIREMENTS:**
   * ALL code must be in {default_language.upper()} language
-  * Include comments explaining key parts
+  * Include {'detailed' if level_up_mode else ''} comments explaining key parts
   * Use proper {default_language.upper()} syntax and conventions
-  * Provide complete, runnable examples when possible
+  * Provide {'multiple examples and' if level_up_mode else ''} complete, runnable examples when possible
+  {f'* Add inline explanations for complex logic' if level_up_mode else ''}
 - Analyze the context to match the exact programming style shown
 - If context doesn't contain relevant information, say so clearly
-- Structure: text → code → text (use cases)
+- Structure: text → code → text (use cases){' → advanced insights → next steps' if level_up_mode else ''}
+{f'- **LEVEL UP+ REQUIREMENTS:** Be thorough, provide expert-level insights, explain underlying principles, and guide deeper learning' if level_up_mode else ''}
 
 If you cannot produce JSON exactly as specified, output an error object:
 {{"error":"reason for failure"}}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { signInWithPopup, signInWithRedirect, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 import AIBookIcon from './icons/AIBookIcon';
 import type { User } from '../types';
@@ -22,35 +22,50 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
     setError('');
 
     try {
+      console.log('🔑 Attempting Google sign-in with popup...');
       const result = await signInWithPopup(auth, googleProvider);
+      console.log('✅ Google sign-in successful:', result.user.email);
+      
       const user: User = {
         name: result.user.displayName || 'User',
         email: result.user.email || '',
       };
+      
+      // Call onLogin callback
       onLogin(user);
       setLoading(false);
     } catch (error: any) {
-      console.error('Google sign-in error:', error);
+      console.error('❌ Google sign-in error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
 
-      const shouldFallbackToRedirect = [
-        'auth/popup-blocked',
-        'auth/popup-closed-by-user',
-        'auth/cancelled-popup-request',
-      ].includes(error.code);
-
-      if (shouldFallbackToRedirect) {
-        try {
-          await signInWithRedirect(auth, googleProvider);
-          setLoading(false);
-          return; // Redirect flow will take over
-        } catch (redirectError: any) {
-          console.error('Redirect error:', redirectError);
-          setError('Failed to sign in. Please allow popups or try a different browser.');
-        }
+      // Handle specific error cases
+      if (error.code === 'auth/popup-blocked') {
+        setError(
+          'Popup was blocked by your browser. Please allow popups for this site and try again.\n\n' +
+          'Or try using a different browser.'
+        );
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        setError('Sign-in was cancelled. Please try again.');
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        // User closed popup, just clear loading state
+        console.log('User cancelled popup');
       } else if (error.code === 'auth/unauthorized-domain') {
-        setError('This domain is not authorized. Please add it in Firebase Console → Authentication → Settings → Authorized domains.');
+        const currentDomain = window.location.hostname;
+        console.error('❌ Unauthorized domain:', currentDomain);
+        setError(
+          `Domain "${currentDomain}" is not authorized.\n\n` +
+          `To fix this:\n` +
+          `1. Go to Firebase Console → Authentication → Settings\n` +
+          `2. Add "${currentDomain}" to Authorized domains\n` +
+          `3. If using localhost, ensure both "localhost" and "127.0.0.1" are added`
+        );
       } else if (error.code === 'auth/network-request-failed') {
-        setError('Network error. Please check your internet connection.');
+        setError('Network error. Please check your internet connection and try again.');
+      } else if (error.code === 'auth/configuration-not-found') {
+        setError('Firebase configuration error. Please ensure Google Sign-In is enabled in Firebase Console.');
+      } else if (error.code === 'auth/invalid-api-key') {
+        setError('Invalid Firebase API key. Please check your environment variables.');
       } else {
         setError(error.message || 'Failed to sign in with Google. Please try again.');
       }

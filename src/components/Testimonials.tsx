@@ -7,7 +7,8 @@ const testimonialsData = [
       "Turned my 200-page lecture notes into flashcards in under 5 minutes. Revision before finals was actually manageable for the first time.",
     name: 'Priya Sharma',
     title: 'Computer Science, IIT Delhi',
-    avatar: 'https://mastdp.com/images/simple-girl-pic/2024/07/girl-pic-simple.webp',
+    initials: 'PS',
+    gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     rating: 5
   },
   {
@@ -15,7 +16,8 @@ const testimonialsData = [
       'Asked 50+ questions from my uploaded PDFs while studying for CA exams. Every answer cited the exact page. No more hunting through notes.',
     name: 'Arjun Mehta',
     title: 'Commerce Student, University of Delhi',
-    avatar: 'https://w0.peakpx.com/wallpaper/459/1009/HD-wallpaper-indian-model-boy-cute-u-wall-thumbnail.jpg',
+    initials: 'AM',
+    gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
     rating: 5
   },
   {
@@ -23,7 +25,8 @@ const testimonialsData = [
       'Generated practice quizzes from my organic chemistry notes. Scored 15% higher after using this for two weeks. Retention is actually sticking now.',
     name: 'Sneha Reddy',
     title: 'Medical Student, AIIMS',
-    avatar: 'https://i.pravatar.cc/120?u=studysync-sneha',
+    initials: 'SR',
+    gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
     rating: 5
   },
 ];
@@ -63,15 +66,16 @@ const Testimonials: FC = () => {
           </div>
         </ScrollReveal>
 
-        <div className="grid md:grid-cols-3 gap-8">
-          {testimonialsData.map(({ quote, name, title, avatar, rating }, index) => (
+        <div className="grid md:grid-cols-3 gap-8 items-stretch">
+          {testimonialsData.map(({ quote, name, title, initials, gradient, rating }, index) => (
             <ScrollReveal 
               key={name} 
               animation="zoom" 
               delay={0.1 + index * 0.1}
+              className="flex"
             >
               <article 
-                className="group p-8 rounded-3xl"
+                className="group p-8 rounded-3xl flex flex-col w-full"
                 style={{
                   backgroundColor: 'rgba(255, 255, 255, 0.6)',
                   border: '1px solid var(--color-border-light)',
@@ -102,26 +106,30 @@ const Testimonials: FC = () => {
                   ))}
                 </div>
 
-                <p className="text-base leading-relaxed mb-8"
+                <p className="text-base leading-relaxed mb-8 flex-grow"
                    style={{ 
                      color: 'var(--color-text-secondary)',
-                     lineHeight: 'var(--line-height-relaxed)'
+                     lineHeight: 'var(--line-height-relaxed)',
+                     minHeight: '120px'
                    }}>
                   "{quote}"
                 </p>
 
-                <div className="flex items-center gap-4">
-                  <img 
-                    src={avatar} 
-                    alt={name} 
-                    className="w-12 h-12 rounded-full object-cover"
-                    style={{ border: '2px solid var(--color-border-light)' }}
-                  />
-                  <div>
-                    <div className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                <div className="flex items-center gap-4 mt-auto h-14">
+                  <div 
+                    className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-white text-lg shadow-md flex-shrink-0"
+                    style={{ 
+                      background: gradient,
+                      border: '2px solid var(--color-border-light)'
+                    }}
+                  >
+                    {initials}
+                  </div>
+                  <div className="flex flex-col justify-center h-full">
+                    <div className="font-semibold" style={{ color: 'var(--color-text-primary)', lineHeight: '1.3' }}>
                       {name}
                     </div>
-                    <div className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                    <div className="text-sm" style={{ color: 'var(--color-text-muted)', lineHeight: '1.3' }}>
                       {title}
                     </div>
                   </div>

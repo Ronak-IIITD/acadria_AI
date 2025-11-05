@@ -18,6 +18,7 @@ class ChatMessage(BaseModel):
     text: str
     use_web_search: bool = False
     model: Optional[str] = "gemini"  # "gemini" or "grok"
+    level_up_mode: bool = False  # Level Up+ mode for enhanced responses
 
 class ContentBlock(BaseModel):
     """Structured content block from AI response"""

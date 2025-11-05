@@ -1,4 +1,4 @@
-import React from 'react';
+import { FC } from 'react';
 import { AiModel } from '../types';
 import type { StudyFile } from '../types';
 
@@ -20,7 +20,7 @@ interface ChatInputAreaProps {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
 }
 
-const ChatInputArea: React.FC<ChatInputAreaProps> = ({
+const ChatInputArea: FC<ChatInputAreaProps> = ({
   input,
   onInputChange,
   onSend,
@@ -38,8 +38,9 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({
   textareaRef
 }) => {
   const models = [
-    { id: AiModel.GEMINI_FLASH, name: 'Gemini 2.0 Flash Exp' },
-    { id: AiModel.GROK, name: 'Grok Beta (xAI)' },
+    { id: AiModel.GEMINI_FLASH, name: 'Gemini 2.5 Flash' },
+    { id: AiModel.GEMINI_PRO, name: 'Gemini 2.5 Pro' },
+    { id: AiModel.GROK, name: 'Grok 4' },
     { id: AiModel.GPT4ALL, name: 'GPT4All (Local)' },
     { id: AiModel.LLAMA2, name: 'LLaMA 2 (Local)' }
   ];

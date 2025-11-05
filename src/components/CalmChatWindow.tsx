@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useContext } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useContext, FC } from 'react';
 import type { AiModel, ChatMessage, StudyFile } from '../types';
 import SendIcon from './icons/SendIcon';
 import SparklesIcon from './icons/SparklesIcon';
@@ -53,7 +53,7 @@ declare global {
 
 const MAX_INPUT_LENGTH = 2000;
 
-const WelcomeState: React.FC = () => (
+const WelcomeState: FC = () => (
   <div className="flex flex-col items-center justify-center h-full text-center px-4 py-12">
     {/* Logo Icon */}
     <div className="inline-flex p-4 rounded-full mb-6" style={{ 
@@ -150,7 +150,7 @@ const WelcomeState: React.FC = () => (
   </div>
 );
 
-const CalmChatWindow: React.FC<ChatWindowProps> = ({ 
+const CalmChatWindow: FC<ChatWindowProps> = ({ 
   files, 
   model,
   onModelChange,
@@ -317,12 +317,14 @@ const CalmChatWindow: React.FC<ChatWindowProps> = ({
     try {
       console.log('📤 [CalmChat] Sending question to AI:', textToSend);
       console.log('🤖 [CalmChat] Using model:', model);
+      console.log('🚀 [CalmChat] Level Up+ mode:', levelUpEnabled ? 'ENABLED' : 'disabled');
       const performWebSearch = useWebSearch;
       const { blocks, suggestions: followUpSuggestions, sources } = await getAiResponse(
         textToSend, 
         files, 
         performWebSearch,
-        model  // ← Pass selected model to API
+        model,  // ← Pass selected model to API
+        levelUpEnabled  // ← NEW: Pass Level Up+ mode to API
       );
       
       console.log('📥 [CalmChat] Received response:', { blocks, followUpSuggestions, sources });

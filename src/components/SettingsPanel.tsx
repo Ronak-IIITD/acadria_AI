@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import { useState, useContext, FC } from 'react';
 import { ThemeContext } from '../contexts/ThemeContext';
 
 interface SettingsPanelProps {
@@ -8,7 +8,7 @@ interface SettingsPanelProps {
   activeSection: 'account' | 'personalization' | 'billing' | 'data';
 }
 
-const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, onNavigate, activeSection }) => {
+const SettingsPanel: FC<SettingsPanelProps> = ({ isOpen, onClose, onNavigate, activeSection }) => {
   const { theme, toggleTheme } = useContext(ThemeContext);
   const [userName, setUserName] = useState('Aizen');
   const [userEmail] = useState('aizenjod7047@gmail.com');
@@ -254,8 +254,9 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, onNaviga
                     }}
                   >
                     <option value="Auto">Auto</option>
-                    <option value="Gemini">Gemini 2.0 Flash</option>
-                    <option value="Grok">Grok Beta</option>
+                    <option value="gemini-flash">Gemini 2.5 Flash</option>
+                    <option value="gemini-pro">Gemini 2.5 Pro</option>
+                    <option value="grok">Grok 4</option>
                   </select>
                 </div>
               </div>

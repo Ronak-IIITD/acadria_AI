@@ -37,7 +37,8 @@ class GrokService:
         query: str,
         context: str,
         sources: List[Dict[str, Any]],
-        use_web_search: bool = False
+        use_web_search: bool = False,
+        level_up_mode: bool = False
     ) -> ChatResponse:
         """
         Generate AI response using Grok model with retrieved context.
@@ -47,6 +48,7 @@ class GrokService:
             context: Retrieved document context
             sources: Source documents
             use_web_search: Whether to use web search (not yet implemented)
+            level_up_mode: Enable Level Up+ mode for enhanced, detailed responses
         
         Returns:
             ChatResponse with structured blocks
@@ -60,17 +62,21 @@ class GrokService:
         
         try:
             # Build prompt with structured JSON instruction
-            prompt = self._build_prompt(query, context, use_web_search)
+            prompt = self._build_prompt(query, context, use_web_search, level_up_mode)
+            
+            # Adjust temperature and max_tokens for Level Up+ mode
+            temperature = 0.8 if level_up_mode else 0.7
+            max_tokens = 3000 if level_up_mode else 2000
             
             # Call Grok API
             response = self.client.chat.completions.create(
                 model="grok-4",  # Grok's latest model with 2M token context
                 messages=[
-                    {"role": "system", "content": "You are a helpful AI assistant that provides accurate, well-structured answers based on provided context."},
+                    {"role": "system", "content": "You are a helpful AI assistant that provides accurate, well-structured answers based on provided context." + (" In Level Up+ mode, provide comprehensive, expert-level explanations with deep insights." if level_up_mode else "")},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.7,
-                max_tokens=2000
+                temperature=temperature,
+                max_tokens=max_tokens
             )
             
             raw_answer = response.choices[0].message.content
@@ -111,11 +117,25 @@ class GrokService:
                 sources=[]
             )
     
-    def _build_prompt(self, query: str, context: str, use_web_search: bool) -> str:
+    def _build_prompt(self, query: str, context: str, use_web_search: bool, level_up_mode: bool = False) -> str:
         """Build prompt with context and instructions"""
         
+        # Level Up+ mode instruction
+        depth_instruction = ""
+        if level_up_mode:
+            depth_instruction = """
+**🚀 LEVEL UP+ MODE ACTIVATED**
+Provide ENHANCED responses with:
+- Deeper explanations of underlying principles
+- Multiple detailed examples (2-3+)
+- Expert insights and best practices
+- Advanced tips and common pitfalls
+- Industry context and real-world applications
+- Related topics for further learning
+"""
+        
         prompt = f"""You are an assistant that outputs structured responses. ALWAYS return valid JSON.
-
+{depth_instruction}
 **FORMAT REQUIREMENT:**
 Return a JSON array of content blocks:
 [
@@ -128,6 +148,7 @@ Return a JSON array of content blocks:
 2. NO HTML tags, NO markdown markers, NO dollar signs in math blocks
 3. If explanation + equation: return TWO blocks (text first, then math)
 4. Use \\frac{{}}{{}}, \\sqrt{{}}, ^{{}}, _{{}} for LaTeX formatting
+{f'5. LEVEL UP+ MODE: Provide comprehensive coverage with {5-7 if level_up_mode else 3-5} key points, multiple examples, and expert insights' if level_up_mode else ''}
 
 **Context from uploaded documents:**
 {context if context else "No relevant documents found."}
@@ -139,10 +160,11 @@ Return a JSON array of content blocks:
 {query}
 
 **Instructions:**
-- Provide accurate answers based on the context
+- Provide {'comprehensive, expert-level' if level_up_mode else 'accurate'} answers based on the context
 - If context doesn't have info, say so clearly
-- Use examples appropriate for students
+- Use examples appropriate for {'advanced' if level_up_mode else ''} students
 - Cite specific parts of documents when relevant
+{f'- LEVEL UP+ MODE: Go beyond basics - explain WHY, provide multiple approaches, discuss trade-offs, and suggest next learning steps' if level_up_mode else ''}
 
 Output ONLY the JSON array. No additional text."""
         

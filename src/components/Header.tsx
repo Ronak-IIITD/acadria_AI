@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, FC } from 'react';
 import AIBookIcon from './icons/AIBookIcon';
 import type { User } from '../types';
 
@@ -9,7 +9,7 @@ interface HeaderProps {
   isScrolled: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, onLogout, onLoginClick, isScrolled }) => {
+const Header: FC<HeaderProps> = ({ user, onLogout, onLoginClick, isScrolled }) => {
   const [activeSection, setActiveSection] = useState('home');
 
   useEffect(() => {

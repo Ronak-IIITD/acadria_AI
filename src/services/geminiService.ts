@@ -371,7 +371,8 @@ export const getAiResponse = async (
     question: string, 
     contextFiles: StudyFile[], 
     performWebSearch: boolean,
-    selectedModel: string = 'gemini'  // ← NEW: Model selection (gemini/grok)
+    selectedModel: string = 'gemini',  // ← Model selection (gemini/grok)
+    levelUpMode: boolean = false  // ← NEW: Level Up+ mode
 ): Promise<{ blocks: ContentBlock[], suggestions: { displayText: string; query: string }[], sources: string[] }> => {
     // Check if backend API is available
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
@@ -386,7 +387,8 @@ export const getAiResponse = async (
             body: JSON.stringify({
                 text: question,
                 use_web_search: performWebSearch,
-                model: selectedModel  // ← NEW: Send model to backend
+                model: selectedModel,  // ← Send model to backend
+                level_up_mode: levelUpMode  // ← NEW: Send Level Up+ mode
             })
         });
 

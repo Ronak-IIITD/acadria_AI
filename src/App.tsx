@@ -1,88 +1,122 @@
-import { useState, useCallback, useEffect } from 'react';
-import { onAuthStateChanged, signOut, getRedirectResult } from 'firebase/auth';
+import { useState, useEffect } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './lib/firebase';
+import LandingPage from './components/LandingPage';
 import Dashboard from './components/Dashboard';
 import Login from './components/Login';
 import Header from './components/Header';
-import LandingPage from './components/LandingPage';
-import type { User } from './types';
 import AnimatedGradientBackground from './components/AnimatedGradientBackground';
+import type { User } from './types';
 
-const App = () => {
+function App() {
+  const [currentView, setCurrentView] = useState<'landing' | 'dashboard'>('landing');
   const [user, setUser] = useState<User | null>(null);
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  const [authLoading, setAuthLoading] = useState(true); // Add loading state
 
   // Listen to Firebase auth state changes
   useEffect(() => {
-    // Check for redirect result first (in case popup was blocked and redirect was used)
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result && result.user) {
-          setUser({
-            name: result.user.displayName || result.user.email?.split('@')[0] || 'User',
-            email: result.user.email || '',
-          });
-        }
-      })
-      .catch((error) => {
-        console.error('Redirect result error:', error);
-      });
-
+    console.log('🔥 Setting up Firebase auth state listener...');
+    
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
-        setUser({
+        console.log('✅ User is signed in:', firebaseUser.email);
+        
+        // Create user object from Firebase user
+        const user: User = {
           name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
           email: firebaseUser.email || '',
-        });
+        };
+        
+        setUser(user);
+        
+        // Check if we should navigate to dashboard
+        const storedView = localStorage.getItem('studysync_last_view');
+        if (storedView === 'dashboard') {
+          setCurrentView('dashboard');
+        }
       } else {
+        console.log('❌ No user signed in');
         setUser(null);
+        setCurrentView('landing');
       }
-      setIsLoading(false);
+      
+      setAuthLoading(false);
     });
 
-    return () => unsubscribe();
+    // Cleanup subscription on unmount
+    return () => {
+      console.log('🧹 Cleaning up Firebase auth listener');
+      unsubscribe();
+    };
   }, []);
 
-  const handleLogin = useCallback((loggedInUser: User) => {
-    setUser(loggedInUser);
-    setIsLoginOpen(false);
-  }, []);
-
-  const handleLogout = useCallback(async () => {
-    try {
-      await signOut(auth);
-      localStorage.removeItem('chatHistory');
-      setUser(null);
-    } catch (error) {
-      console.error('Logout error:', error);
+  // Save user to localStorage when it changes (legacy support)
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('studysync_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('studysync_user');
     }
+  }, [user]);
+
+  // Save current view to localStorage
+  useEffect(() => {
+    localStorage.setItem('studysync_last_view', currentView);
+  }, [currentView]);
+
+  // Track scroll position for header styling
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const openLoginModal = useCallback(() => {
-    setIsLoginOpen(true);
-  }, []);
+  const handleGetStarted = () => {
+    if (user) {
+      console.log('📊 User already logged in, navigating to dashboard');
+      setCurrentView('dashboard');
+    } else {
+      console.log('🔑 No user, showing login modal');
+      setShowLogin(true);
+    }
+  };
 
-  const closeLoginModal = useCallback(() => {
-    setIsLoginOpen(false);
-  }, []);
+  const handleLogin = (loggedInUser: User) => {
+    console.log('✅ Login successful, navigating to dashboard:', loggedInUser.email);
+    setUser(loggedInUser);
+    setShowLogin(false);
+    setCurrentView('dashboard');
+  };
 
-  if (isLoading) {
+  const handleLogout = async () => {
+    console.log('👋 Logging out user...');
+    try {
+      await auth.signOut();
+      console.log('✅ User signed out successfully');
+      setUser(null);
+      setCurrentView('landing');
+      localStorage.removeItem('studysync_user');
+      localStorage.removeItem('studysync_last_view');
+    } catch (error) {
+      console.error('❌ Error signing out:', error);
+    }
+  };
+
+  // Show loading state while checking auth
+  if (authLoading) {
     return (
       <AnimatedGradientBackground>
-        <div className="min-h-screen flex items-center justify-center">
+        <div className="app-container flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-14 w-14 border-2 border-gray-200 dark:border-gray-700 border-t-purple-400 dark:border-t-purple-500 mx-auto"></div>
-            <p className="mt-6 text-gray-500 dark:text-gray-400 font-medium">Loading...</p>
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-t-2" 
+                 style={{ borderColor: '#35d0c3' }}></div>
+            <p className="mt-4 text-lg" style={{ color: 'var(--color-text-secondary)' }}>
+              Loading...
+            </p>
           </div>
         </div>
       </AnimatedGradientBackground>
@@ -91,19 +125,34 @@ const App = () => {
 
   return (
     <AnimatedGradientBackground>
-      <div className="min-h-screen font-sans text-gray-800 dark:text-gray-200 isolate">
-        {!user && <Header user={user} onLogout={handleLogout} onLoginClick={openLoginModal} isScrolled={isScrolled} />}
-        <main className={user ? 'h-screen' : ''}>
-          {user ? (
-            <Dashboard />
-          ) : (
-            <LandingPage onGetStarted={openLoginModal} />
-          )}
-        </main>
-        {isLoginOpen && <Login onLogin={handleLogin} onClose={closeLoginModal} />}
+      <div className="app-container">
+        {/* Header - shown on all views */}
+        {currentView === 'landing' && (
+          <Header
+            user={user}
+            onLogout={handleLogout}
+            onLoginClick={() => setShowLogin(true)}
+            isScrolled={isScrolled}
+          />
+        )}
+
+        {/* Main Content */}
+        {currentView === 'landing' ? (
+          <LandingPage onGetStarted={handleGetStarted} />
+        ) : (
+          <Dashboard />
+        )}
+
+        {/* Login Modal */}
+        {showLogin && (
+          <Login
+            onLogin={handleLogin}
+            onClose={() => setShowLogin(false)}
+          />
+        )}
       </div>
     </AnimatedGradientBackground>
   );
-};
+}
 
 export default App;
