@@ -17,10 +17,13 @@ class RAGService:
         api_key = os.getenv("GEMINI_API_KEY")
         if api_key:
             genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            # Default to Flash model
+            self.model = genai.GenerativeModel('gemini-2.5-flash')
+            self.model_name = 'gemini-2.5-flash'
         else:
             print("WARNING: GEMINI_API_KEY not set. API calls will fail.")
             self.model = None
+            self.model_name = None
         
         # Initialize embedding service
         self.embedding_service = get_embedding_service()
@@ -30,6 +33,18 @@ class RAGService:
         
         # Chat history
         self.chat_history: List[Dict[str, str]] = []
+    
+    def set_model(self, model_name: str):
+        """
+        Switch between Gemini models dynamically.
+        Supported: 'gemini-2.5-flash', 'gemini-2.5-pro'
+        """
+        if model_name in ['gemini-2.5-flash', 'gemini-2.5-pro']:
+            self.model = genai.GenerativeModel(model_name)
+            self.model_name = model_name
+            print(f"✅ Switched to model: {model_name}")
+        else:
+            print(f"⚠️  Unknown model: {model_name}, keeping current model")
     
     async def generate_response(self, query: str, use_web_search: bool = False) -> ChatResponse:
         """

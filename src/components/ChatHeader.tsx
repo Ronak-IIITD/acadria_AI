@@ -1,4 +1,6 @@
 import React from 'react';
+import { signOut } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 import AIBookIcon from './icons/AIBookIcon';
 
 interface ChatHeaderProps {
@@ -10,6 +12,17 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   onMenuClick, 
   fileCount 
 }) => {
+  const handleLogoClick = async () => {
+    if (window.confirm('Return to home? You will be logged out.')) {
+      try {
+        await signOut(auth);
+        localStorage.removeItem('chatHistory');
+      } catch (error) {
+        console.error('Logout error:', error);
+      }
+    }
+  };
+
   return (
     <div 
       className="flex items-center justify-between px-4 py-3 border-b"
@@ -30,8 +43,12 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           </svg>
         </button>
 
-        {/* Logo - StudySync */}
-        <div className="flex items-center gap-3">
+        {/* Logo - StudySync (Clickable to go home) */}
+        <button 
+          onClick={handleLogoClick}
+          className="flex items-center gap-3 px-2 py-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+          aria-label="Return to home"
+        >
           <div
             className="flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-300"
             style={{ 
@@ -50,7 +67,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               backgroundClip: 'text'
             }}>AI</span>
           </span>
-        </div>
+        </button>
       </div>
 
       {/* File Count Badge */}

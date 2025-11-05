@@ -2,6 +2,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import chat, upload, models
 import uvicorn
+from dotenv import load_dotenv
+import os
+from pathlib import Path
+
+# Load environment variables from .env file in backend directory
+env_path = Path(__file__).parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
+print(f"🔧 Loaded .env from: {env_path}")
+print(f"✅ GEMINI_API_KEY present: {bool(os.getenv('GEMINI_API_KEY'))}")
+print(f"✅ GROK_API_KEY present: {bool(os.getenv('GROK_API_KEY'))}")
 
 app = FastAPI(
     title="StudySync AI API",

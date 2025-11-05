@@ -29,8 +29,9 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onModelCha
       >
         {Object.values(AiModel).map((model) => {
           const modelNames = {
-            [AiModel.GEMINI_FLASH]: "Gemini 2.0 Flash",
-            [AiModel.GROK]: "Grok (xAI)",
+            [AiModel.GEMINI_FLASH]: "Gemini 2.5 Flash ⚡",
+            [AiModel.GEMINI_PRO]: "Gemini 2.5 Pro 🚀",
+            [AiModel.GROK]: "Grok 4 (xAI) 🤖",
             [AiModel.GPT4ALL]: "GPT4All (Local)",
             [AiModel.LLAMA2]: "LLaMA 2 (Local)",
           };

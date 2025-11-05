@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 import AIBookIcon from './icons/AIBookIcon';
 import type { User } from '../types';
@@ -20,6 +20,7 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError('');
+
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user: User = {
@@ -27,10 +28,33 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
         email: result.user.email || '',
       };
       onLogin(user);
+      setLoading(false);
     } catch (error: any) {
       console.error('Google sign-in error:', error);
-      setError(error.message || 'Failed to sign in with Google');
-    } finally {
+
+      const shouldFallbackToRedirect = [
+        'auth/popup-blocked',
+        'auth/popup-closed-by-user',
+        'auth/cancelled-popup-request',
+      ].includes(error.code);
+
+      if (shouldFallbackToRedirect) {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          setLoading(false);
+          return; // Redirect flow will take over
+        } catch (redirectError: any) {
+          console.error('Redirect error:', redirectError);
+          setError('Failed to sign in. Please allow popups or try a different browser.');
+        }
+      } else if (error.code === 'auth/unauthorized-domain') {
+        setError('This domain is not authorized. Please add it in Firebase Console → Authentication → Settings → Authorized domains.');
+      } else if (error.code === 'auth/network-request-failed') {
+        setError('Network error. Please check your internet connection.');
+      } else {
+        setError(error.message || 'Failed to sign in with Google. Please try again.');
+      }
+
       setLoading(false);
     }
   };

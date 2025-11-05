@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut, getRedirectResult } from 'firebase/auth';
 import { auth } from './lib/firebase';
 import Dashboard from './components/Dashboard';
 import Login from './components/Login';
@@ -24,6 +24,20 @@ const App = () => {
 
   // Listen to Firebase auth state changes
   useEffect(() => {
+    // Check for redirect result first (in case popup was blocked and redirect was used)
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result && result.user) {
+          setUser({
+            name: result.user.displayName || result.user.email?.split('@')[0] || 'User',
+            email: result.user.email || '',
+          });
+        }
+      })
+      .catch((error) => {
+        console.error('Redirect result error:', error);
+      });
+
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         setUser({

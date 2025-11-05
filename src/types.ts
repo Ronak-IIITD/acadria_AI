@@ -37,7 +37,8 @@ export interface ChatMessage {
 }
 
 export enum AiModel {
-  GEMINI_FLASH = 'gemini',
+  GEMINI_FLASH = 'gemini-flash',
+  GEMINI_PRO = 'gemini-pro',
   GROK = 'grok',
   GPT4ALL = 'gpt4all',
   LLAMA2 = 'llama2',
