@@ -3,6 +3,7 @@ import type { StudyFile } from '../types';
 import UploadIcon from './icons/UploadIcon';
 import * as pdfjsLib from 'pdfjs-dist/build/pdf.mjs';
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { uploadDocumentsToBackend } from '../services/uploadService';
 
 // Add Mammoth.js type declaration for global script
 declare const mammoth: any;
@@ -273,7 +274,23 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFilesAdded }) => {
     }
 
     if(processedFiles.length > 0) {
+      // First, add files to local state for immediate UI update
       onFilesAdded(processedFiles);
+
+      // Then, upload to backend for RAG processing
+      console.log('📤 Uploading files to backend for RAG processing...');
+      const filesToUpload = Array.from(filesToProcess || []);
+
+      uploadDocumentsToBackend(filesToUpload).then(result => {
+        if (result.success) {
+          console.log('✅ Files uploaded to backend successfully:', result.documents);
+        } else {
+          console.error('❌ Backend upload failed:', result.error);
+          // You might want to show an error toast here
+        }
+      }).catch(error => {
+        console.error('❌ Backend upload error:', error);
+      });
     }
   }, [onFilesAdded]);
   

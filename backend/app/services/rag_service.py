@@ -61,7 +61,14 @@ class RAGService:
             # In Level Up+ mode, retrieve MORE context chunks
             top_k = 5 if level_up_mode else 3
             context, sources = self._retrieve_context(query, top_k=top_k)
-            
+
+            # Log context retrieval status
+            if context:
+                print(f"📖 Retrieved context: {len(context)} chars from {len(sources)} sources")
+                print(f"📄 Sources: {[s['title'] for s in sources]}")
+            else:
+                print("⚠️ No context retrieved - documents may not be uploaded")
+
             # Build prompt with structured JSON instruction
             prompt = self._build_prompt(query, context, use_web_search, level_up_mode)
             
@@ -327,8 +334,8 @@ Return a JSON array of content blocks with this EXACT structure:
   {{"type":"text","value":"```python\\ncode```"}}     ← Code must be in code block!
 ]
 
-**Context from uploaded documents:**
-{context if context else "No relevant documents found."}
+**IMPORTANT CONTEXT FROM UPLOADED DOCUMENTS (YOU MUST USE THIS):**
+{context if context else "No documents have been uploaded yet. Please remind the user to upload documents for context-aware answers."}
 
 **Chat History:**
 {self._format_chat_history()}
@@ -336,10 +343,14 @@ Return a JSON array of content blocks with this EXACT structure:
 **Student's Question:**
 {query}
 
-**Instructions for answer:**
+**CRITICAL INSTRUCTIONS:**
+- **IF DOCUMENTS ARE UPLOADED:** Base your ENTIRE answer on the provided document context above
+- **IF NO DOCUMENTS:** Inform the user that no documents are uploaded and suggest uploading relevant study materials
+- **NEVER IGNORE THE CONTEXT:** Your answer MUST reference and use information from the uploaded documents
 - **MANDATORY: Follow the system formatting rules above**
 - **YOU MUST USE {default_language.upper()} for ALL code examples unless explicitly asked otherwise**
-- Provide accurate, helpful answers based on the context provided
+- Cite specific sections from the documents when answering
+- If the question cannot be answered from the documents, say so clearly
 - **RESPONSE STRUCTURE (MUST FOLLOW):**
   1. **Bold Heading** with topic name
   2. Brief summary paragraph ({f'4-5 sentences with depth' if level_up_mode else '2-3 sentences'})
@@ -412,6 +423,7 @@ REMEMBER: Output ONLY the JSON array. No additional text before or after."""
         Each chunk should have: content, filename, chunk_index, etc.
         """
         self.documents.extend(chunks)
+        print(f"📚 Added {len(chunks)} chunks to RAG store. Total documents now: {len(self.documents)}")
     
     def clear_documents(self):
         """Clear all stored documents"""
