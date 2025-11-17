@@ -296,13 +296,61 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQuest
         console.log('💬 Creating AI message:', aiMessage);
         setMessages(prev => prev.filter(m => !m.isTyping).concat(aiMessage));
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to get AI response", error);
+
+        // Check for structured error from backend
+        const errorType = error?.errorType;
+        const retryAfter = error?.retryAfter;
+        const errorStr = error?.message?.toLowerCase() || error?.toString()?.toLowerCase() || '';
+
+        let errorText = "Sorry, I couldn't connect to the AI. Please try again.";
+        let followUpSuggestions = [];
+
+        // Handle structured error types first
+        if (errorType === 'model_overload') {
+            errorText = `🔄 The AI model is temporarily busy. ${retryAfter ? `Retry in ${retryAfter} seconds.` : 'Please try again shortly.'} The system attempted automatic retries.`;
+            followUpSuggestions = [
+                { displayText: "Try again", query: textToSend },
+                { displayText: "Switch to Grok model", query: "Switch to Grok model" },
+                { displayText: "Ask a simpler question", query: "" }
+            ];
+        } else if (errorType === 'authentication') {
+            errorText = "🔑 API key issue detected. Please check your Gemini API key configuration.";
+            followUpSuggestions = [
+                { displayText: "Check API settings", query: "How do I configure API keys?" }
+            ];
+        } else if (errorStr.includes('503') || errorStr.includes('unavailable') || errorStr.includes('overload') || errorStr.includes('busy')) {
+            errorText = "🔄 The AI model is currently busy due to high demand. The system is automatically retrying your request. You can also:";
+            followUpSuggestions = [
+                { displayText: "Try again", query: textToSend },
+                { displayText: "Switch to Grok model", query: "Switch to Grok model" },
+                { displayText: "Ask a simpler question", query: "" }
+            ];
+        } else if (errorStr.includes('quota') || errorStr.includes('rate')) {
+            errorText = "⚠️ API rate limit reached. Please wait a moment before trying again, or switch to a different model.";
+            followUpSuggestions = [
+                { displayText: "Try again in 30 seconds", query: textToSend },
+                { displayText: "Switch to Grok model", query: "Switch to Grok model" }
+            ];
+        } else if (errorStr.includes('api_key') || errorStr.includes('authentication')) {
+            errorText = "🔑 API key issue detected. Please check your Gemini API key configuration.";
+            followUpSuggestions = [
+                { displayText: "Check API settings", query: "How do I configure API keys?" }
+            ];
+        } else if (errorStr.includes('no documents') || errorStr.includes('no context')) {
+            errorText = "📄 Please upload a document first to get context-based answers.";
+            followUpSuggestions = [
+                { displayText: "How to upload documents", query: "How do I upload documents?" }
+            ];
+        }
+
         const errorMessage: ChatMessage = {
             id: `ai-error-${Date.now()}`,
-            text: "Sorry, I couldn't connect to the AI. Please try again.",
+            text: errorText,
             sender: 'ai',
             timestamp: Date.now(),
+            followUpSuggestions: followUpSuggestions
         };
         setMessages(prev => prev.filter(m => !m.isTyping).concat(errorMessage));
     } finally {

@@ -29,3 +29,9 @@ MIN_QUERY_LENGTH = int(os.getenv("MIN_QUERY_LENGTH", "1"))
 # API Configuration
 BACKEND_PORT = int(os.getenv("PORT", "8000"))
 BACKEND_HOST = os.getenv("HOST", "0.0.0.0")
+
+# AI Model Retry Configuration
+MAX_RETRIES = int(os.getenv("MAX_RETRIES", "3"))  # Max retry attempts for model errors
+INITIAL_RETRY_DELAY = int(os.getenv("INITIAL_RETRY_DELAY", "2"))  # Initial delay in seconds
+MAX_RETRY_DELAY = int(os.getenv("MAX_RETRY_DELAY", "10"))  # Maximum delay in seconds
+FALLBACK_MODEL = os.getenv("FALLBACK_MODEL", "gemini-1.5-pro")  # Fallback model when primary fails

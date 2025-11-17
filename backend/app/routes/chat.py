@@ -44,16 +44,16 @@ async def chat(message: ChatMessage, current_user: dict = Depends(get_current_us
                 level_up_mode=level_up_mode
             )
         elif model == "gemini-pro":
-            # Use Gemini 2.5 Pro
-            rag_service.set_model('gemini-2.5-pro')
+            # Use Gemini 1.5 Pro
+            rag_service.set_model('gemini-1.5-pro')
             response = await rag_service.generate_response(
                 query=message.text,
                 use_web_search=message.use_web_search,
                 level_up_mode=level_up_mode
             )
         else:
-            # Use Gemini 2.5 Flash (default)
-            rag_service.set_model('gemini-2.5-flash')
+            # Use Gemini 1.5 Flash (default)
+            rag_service.set_model('gemini-1.5-flash')
             response = await rag_service.generate_response(
                 query=message.text,
                 use_web_search=message.use_web_search,
@@ -62,8 +62,35 @@ async def chat(message: ChatMessage, current_user: dict = Depends(get_current_us
         
         return response
     except Exception as e:
+        error_str = str(e).lower()
         print(f"❌ Chat error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+
+        # Determine appropriate status code and message based on error type
+        if any(keyword in error_str for keyword in ['503', 'unavailable', 'overloaded', 'busy', 'quota', 'rate']):
+            # Model overload or rate limit errors
+            status_code = 503
+            detail = {
+                "error": "model_overload",
+                "message": str(e),
+                "retry_after": 30,  # Suggest retry after 30 seconds
+                "suggestion": "The AI model is temporarily busy. Please try again in a moment or switch to a different model."
+            }
+        elif 'api_key' in error_str or 'authentication' in error_str:
+            status_code = 401
+            detail = {
+                "error": "authentication",
+                "message": str(e),
+                "suggestion": "Please check your API key configuration."
+            }
+        else:
+            status_code = 500
+            detail = {
+                "error": "internal_error",
+                "message": str(e),
+                "suggestion": "An unexpected error occurred. Please try again."
+            }
+
+        raise HTTPException(status_code=status_code, detail=detail)
 
 @router.delete("/chat/history")
 async def clear_history(current_user: dict = Depends(get_current_user)):

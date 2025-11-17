@@ -1,10 +1,12 @@
 import os
 import json
+import time
 from typing import List, Dict, Any
 import google.generativeai as genai
 from app.models.schemas import ChatResponse, ContentBlock
 from app.utils.ai_validator import validate_ai_blocks, extract_suggestions_and_sources
 from app.services.embedding_service import get_embedding_service
+from app.config import MAX_RETRIES, INITIAL_RETRY_DELAY, MAX_RETRY_DELAY, FALLBACK_MODEL
 
 class RAGService:
     """
@@ -18,8 +20,8 @@ class RAGService:
         if api_key:
             genai.configure(api_key=api_key)
             # Default to Flash model
-            self.model = genai.GenerativeModel('gemini-2.5-flash')
-            self.model_name = 'gemini-2.5-flash'
+            self.model = genai.GenerativeModel('gemini-1.5-flash')
+            self.model_name = 'gemini-1.5-flash'
         else:
             print("WARNING: GEMINI_API_KEY not set. API calls will fail.")
             self.model = None
@@ -37,9 +39,9 @@ class RAGService:
     def set_model(self, model_name: str):
         """
         Switch between Gemini models dynamically.
-        Supported: 'gemini-2.5-flash', 'gemini-2.5-pro'
+        Supported: 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'
         """
-        if model_name in ['gemini-2.5-flash', 'gemini-2.5-pro']:
+        if model_name in ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp']:
             self.model = genai.GenerativeModel(model_name)
             self.model_name = model_name
             print(f"✅ Switched to model: {model_name}")
@@ -72,9 +74,85 @@ class RAGService:
             # Build prompt with structured JSON instruction
             prompt = self._build_prompt(query, context, use_web_search, level_up_mode)
             
-            # Generate response
-            response = self.model.generate_content(prompt)
-            raw_answer = response.text
+            # Generate response with retry logic for overload errors
+            retry_delay = INITIAL_RETRY_DELAY
+            original_model = self.model_name
+            raw_answer = None
+            last_error = None
+
+            for attempt in range(MAX_RETRIES):
+                try:
+                    print(f"🤖 Attempting to generate response with {self.model_name} (attempt {attempt + 1}/{MAX_RETRIES})")
+                    response = self.model.generate_content(prompt)
+                    raw_answer = response.text
+
+                    # If we had switched models and it worked, log success
+                    if self.model_name != original_model:
+                        print(f"✅ Successfully generated response using fallback model: {self.model_name}")
+
+                    break  # Success, exit retry loop
+                except Exception as e:
+                    # Convert error to string and check both the string representation and attributes
+                    error_str = str(e).lower()
+                    error_repr = repr(e).lower()
+
+                    # Check for status code if available (Google API errors have this)
+                    status_code = None
+                    if hasattr(e, 'code'):
+                        status_code = e.code
+                    elif hasattr(e, 'status_code'):
+                        status_code = e.status_code
+
+                    # Check if it's a model overload error (503 or quota exceeded)
+                    is_retryable = (
+                        status_code in [503, 429, 500] or  # HTTP error codes
+                        any(keyword in error_str for keyword in [
+                            '503', 'unavailable', 'overloaded', 'quota', 'rate',
+                            'resource_exhausted', 'too many requests', 'model is busy',
+                            'temporarily unavailable', 'service unavailable'
+                        ]) or
+                        any(keyword in error_repr for keyword in [
+                            '503', 'unavailable', 'overloaded'
+                        ])
+                    )
+
+                    if is_retryable and attempt < MAX_RETRIES - 1:
+                        print(f"⚠️ Model {self.model_name} error (attempt {attempt + 1}/{MAX_RETRIES})")
+                        print(f"   Error details: {str(e)[:200]}")
+                        print(f"   Status code: {status_code}")
+                        print(f"   Retryable: {is_retryable}")
+                        print(f"⏳ Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+
+                        # Exponential backoff with max delay
+                        retry_delay = min(retry_delay * 2, MAX_RETRY_DELAY)
+
+                        # Try switching to a different model on second retry
+                        if attempt == 1 and self.model_name != FALLBACK_MODEL:
+                            print(f"🔄 Switching to fallback model: {FALLBACK_MODEL}")
+                            try:
+                                self.set_model(FALLBACK_MODEL)
+                            except Exception as switch_error:
+                                print(f"❌ Failed to switch to {FALLBACK_MODEL}: {switch_error}")
+                                # Continue with current model
+                        continue
+                    else:
+                        # Not retryable or all retries exhausted
+                        last_error = e
+                        if is_retryable:
+                            print(f"❌ All {MAX_RETRIES} retry attempts failed")
+                            raise Exception(f"All AI models are currently busy after {MAX_RETRIES} attempts. Please try again in a few moments or switch to a different model.")
+                        else:
+                            # Not a retryable error, raise with original message
+                            print(f"❌ Non-retryable error encountered: {str(e)[:100]}")
+                            raise
+
+            # Check if we failed to get a response after all retries
+            if raw_answer is None:
+                if last_error:
+                    raise Exception(f"Failed to generate response after {MAX_RETRIES} attempts. Last error: {str(last_error)[:100]}")
+                else:
+                    raise Exception("Failed to generate response for unknown reason")
             
             print(f"🤖 RAW AI RESPONSE (first 500 chars): {raw_answer[:500]}")
             
@@ -110,15 +188,39 @@ class RAGService:
             )
         
         except Exception as e:
+            error_msg = str(e).lower()
             print(f"❌ Error generating response: {str(e)}")
-            # Return error block
+
+            # Provide user-friendly error messages
+            if '503' in error_msg or 'unavailable' in error_msg or 'overloaded' in error_msg:
+                user_message = (
+                    "🔄 The AI service is temporarily busy due to high demand. "
+                    "Please try again in a moment, or try switching to a different model (Grok) from the model selector."
+                )
+            elif 'quota' in error_msg or 'rate' in error_msg:
+                user_message = (
+                    "⚠️ API rate limit reached. Please wait a minute before trying again, "
+                    "or switch to a different model (Grok) from the model selector."
+                )
+            elif 'api_key' in error_msg or 'authentication' in error_msg:
+                user_message = "🔑 API key issue detected. Please check your Gemini API key configuration."
+            elif 'no documents' in error_msg or 'no context' in error_msg:
+                user_message = "📄 Please upload a document first to get context-based answers."
+            else:
+                user_message = f"Sorry, I encountered an error. Please try again or switch models. (Error: {str(e)[:100]})"
+
+            # Return user-friendly error block
             error_block = ContentBlock(
                 type="text",
-                value=f"Error generating response: {str(e)}"
+                value=user_message
             )
             return ChatResponse(
                 blocks=[error_block],
-                suggestions=[],
+                suggestions=[
+                    {"displayText": "Try with Grok model", "query": "Switch to Grok"},
+                    {"displayText": "Upload a document", "query": "Upload document"},
+                    {"displayText": "Retry question", "query": query}
+                ],
                 sources=[]
             )
     

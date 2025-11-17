@@ -395,7 +395,7 @@ export const getAiResponse = async (
         if (response.ok) {
             const data = await response.json();
             console.log('✅ Received structured response from backend:', data);
-            
+
             // Backend returns { blocks, suggestions, sources }
             return {
                 blocks: data.blocks || [],
@@ -403,9 +403,42 @@ export const getAiResponse = async (
                 sources: data.sources || []
             };
         } else {
-            console.warn('⚠️  Backend API failed, falling back to frontend processing');
+            // Parse error details from backend
+            let errorInfo;
+            try {
+                errorInfo = await response.json();
+            } catch {
+                errorInfo = { message: `HTTP ${response.status}: ${response.statusText}` };
+            }
+
+            // Check if it's a structured error response
+            if (errorInfo?.detail && typeof errorInfo.detail === 'object') {
+                const detail = errorInfo.detail;
+                const errorType = detail.error || 'unknown';
+                const suggestion = detail.suggestion || 'Please try again.';
+                const retryAfter = detail.retry_after;
+
+                console.error(`⚠️ Backend API error (${errorType}):`, detail.message);
+
+                // Throw a structured error that the frontend can handle
+                const error = new Error(suggestion);
+                (error as any).errorType = errorType;
+                (error as any).retryAfter = retryAfter;
+                (error as any).originalMessage = detail.message;
+                throw error;
+            } else {
+                // Fallback for non-structured errors
+                console.warn('⚠️  Backend API failed:', errorInfo);
+                throw new Error(errorInfo?.message || errorInfo?.detail || 'Backend API failed');
+            }
         }
-    } catch (error) {
+    } catch (error: any) {
+        // Check if it's a structured error we threw (not a network error)
+        if (error.errorType) {
+            // Re-throw structured errors for proper handling in ChatWindow
+            throw error;
+        }
+        // For network errors, fall back to frontend processing
         console.warn('⚠️  Backend API not available, using frontend fallback:', error);
     }
 
