@@ -20,16 +20,7 @@ function App() {
 
     // Check if Firebase auth is available
     if (!auth || typeof auth.onAuthStateChanged !== 'function') {
-      console.warn('⚠️  Firebase auth not available');
-      console.log('🔓 DEV MODE: Creating mock user for testing');
-
-      // Create a mock user for dev mode
-      const mockUser: User = {
-        name: 'Dev User',
-        email: 'dev@localhost.test'
-      };
-
-      setUser(mockUser);
+      console.warn('⚠️  Firebase auth not available, skipping auth listener');
       setAuthLoading(false);
       return;
     }
