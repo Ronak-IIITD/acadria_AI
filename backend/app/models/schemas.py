@@ -1,6 +1,7 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Literal
 from enum import Enum
+from app.config import MAX_QUERY_LENGTH, MIN_QUERY_LENGTH
 
 class FileType(str, Enum):
     PDF = "PDF"
@@ -15,10 +16,22 @@ class DocumentUpload(BaseModel):
     file_type: FileType
 
 class ChatMessage(BaseModel):
-    text: str
+    text: str = Field(..., min_length=MIN_QUERY_LENGTH, max_length=MAX_QUERY_LENGTH)
     use_web_search: bool = False
     model: Optional[str] = "gemini"  # "gemini" or "grok"
     level_up_mode: bool = False  # Level Up+ mode for enhanced responses
+
+    @field_validator('text')
+    @classmethod
+    def validate_text(cls, v: str) -> str:
+        """Validate query text length and content"""
+        if not v or not v.strip():
+            raise ValueError('Query text cannot be empty or whitespace only')
+        if len(v) > MAX_QUERY_LENGTH:
+            raise ValueError(f'Query text exceeds maximum length of {MAX_QUERY_LENGTH} characters')
+        if len(v) < MIN_QUERY_LENGTH:
+            raise ValueError(f'Query text must be at least {MIN_QUERY_LENGTH} character(s)')
+        return v.strip()
 
 class ContentBlock(BaseModel):
     """Structured content block from AI response"""

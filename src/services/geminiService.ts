@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import type { StudyFile, ChatMessage, ContentBlock } from '../types';
 import * as pdfjsLib from 'pdfjs-dist/build/pdf.mjs';
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { getAuthHeaders } from '../lib/authHelpers';
 
 // REMOVED: import { normalizeAIOutput } from '../utils/mathNormalize';
 // Server-side now handles all normalization
@@ -379,11 +380,10 @@ export const getAiResponse = async (
     
     try {
         // Try to use backend API first
+        const headers = await getAuthHeaders();
         const response = await fetch(`${BACKEND_URL}/api/chat`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers,
             body: JSON.stringify({
                 text: question,
                 use_web_search: performWebSearch,

@@ -1,25 +1,30 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from app.models.schemas import ChatMessage, ChatResponse
-from app.services.rag_service import RAGService
+from app.services.rag_service import get_rag_service
 from app.services.grok_service import get_grok_service
+from app.middleware.auth import get_current_user
 from typing import List
 
 router = APIRouter()
-rag_service = RAGService()
+# Use singleton RAG service to share document store across modules
+rag_service = get_rag_service()
 grok_service = get_grok_service()
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(message: ChatMessage):
+async def chat(message: ChatMessage, current_user: dict = Depends(get_current_user)):
     """
     Chat endpoint with RAG capabilities and model selection.
     Supports Gemini (default) and Grok models.
     Retrieves relevant document chunks using semantic search and generates AI response.
     """
     try:
+        # Log authenticated user
+        print(f"👤 User {current_user['uid']} ({current_user.get('email', 'N/A')}) initiated chat")
+
         # Determine which model to use
         model = message.model if hasattr(message, 'model') and message.model else "gemini-flash"
         level_up_mode = message.level_up_mode if hasattr(message, 'level_up_mode') else False
-        
+
         print(f"🤖 Using model: {model}")
         if level_up_mode:
             print(f"🚀 Level Up+ mode ENABLED - Enhanced response quality")
@@ -61,9 +66,10 @@ async def chat(message: ChatMessage):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/chat/history")
-async def clear_history():
+async def clear_history(current_user: dict = Depends(get_current_user)):
     """Clear chat history for the current session"""
     try:
+        print(f"🗑️ User {current_user['uid']} cleared chat history")
         rag_service.clear_history()
         grok_service.clear_history()
         return {"message": "Chat history cleared successfully"}

@@ -73,13 +73,19 @@ ${documentContent}
 Return ONLY the JSON array, no additional text.`;
 
   try {
-    const response = await getAiResponse(prompt, [], false);
-    
-    let jsonText = response.text.trim();
+    const response = await getAiResponse(prompt, [], false, 'gemini', false);
+
+    // Extract text from blocks
+    let responseText = response.blocks
+      .filter(block => block.type === 'text')
+      .map(block => block.value)
+      .join('\n');
+
+    let jsonText = responseText.trim();
     if (jsonText.startsWith('```json')) jsonText = jsonText.slice(7);
     else if (jsonText.startsWith('```')) jsonText = jsonText.slice(3);
     if (jsonText.endsWith('```')) jsonText = jsonText.slice(0, -3);
-    
+
     const questionsData = JSON.parse(jsonText.trim());
     
     const questions: QuizQuestion[] = questionsData.map((data: any, index: number) => ({
@@ -153,9 +159,14 @@ ${documentContent}
   }
   
   try {
-    const response = await getAiResponse(prompt, [], false);
-    const content = response.text;
-    
+    const response = await getAiResponse(prompt, [], false, 'gemini', false);
+
+    // Extract text from blocks
+    const content = response.blocks
+      .filter(block => block.type === 'text')
+      .map(block => block.value)
+      .join('\n');
+
     const summary: Summary = {
       id: `summary-${documentId}-${mode}-${Date.now()}`,
       documentId,
@@ -163,7 +174,7 @@ ${documentContent}
       content,
       generatedAt: new Date(),
     };
-    
+
     return summary;
   } catch (error) {
     console.error('Error generating summary:', error);
@@ -190,13 +201,19 @@ Return ONLY a JSON array of strings:
 No additional text or formatting.`;
 
   try {
-    const response = await getAiResponse(prompt, [], false);
-    
-    let jsonText = response.text.trim();
+    const response = await getAiResponse(prompt, [], false, 'gemini', false);
+
+    // Extract text from blocks
+    let responseText = response.blocks
+      .filter(block => block.type === 'text')
+      .map(block => block.value)
+      .join('\n');
+
+    let jsonText = responseText.trim();
     if (jsonText.startsWith('```json')) jsonText = jsonText.slice(7);
     else if (jsonText.startsWith('```')) jsonText = jsonText.slice(3);
     if (jsonText.endsWith('```')) jsonText = jsonText.slice(0, -3);
-    
+
     const takeaways = JSON.parse(jsonText.trim());
     return takeaways;
   } catch (error) {

@@ -346,11 +346,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQuest
     setMessages(prev => [...prev, typingIndicator]);
 
     try {
-        const { text: summaryText } = await getAiSummary(type, contentToSummarize);
-        
+        const { blocks } = await getAiSummary(type, contentToSummarize);
+
         const aiMessage: ChatMessage = {
             id: `ai-summary-${Date.now()}`,
-            text: summaryText,
+            text: '', // Legacy field
+            blocks: blocks,
             sender: 'ai',
             timestamp: Date.now(),
         };

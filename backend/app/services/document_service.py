@@ -1,11 +1,12 @@
 import uuid
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 from PyPDF2 import PdfReader
 from docx import Document
 import markdown
 import re
-from app.services.rag_service import RAGService
+import fitz  # PyMuPDF for annotation extraction
+from app.services.rag_service import get_rag_service
 from app.services.embedding_service import get_embedding_service
 
 class DocumentService:
@@ -14,9 +15,10 @@ class DocumentService:
     Extracts text from various file formats and splits into chunks.
     Now includes embedding generation for semantic search.
     """
-    
+
     def __init__(self):
-        self.rag_service = RAGService()
+        # Use singleton RAG service to share document store across modules
+        self.rag_service = get_rag_service()
         self.embedding_service = get_embedding_service()
         
         # Simple text chunking parameters
@@ -31,56 +33,112 @@ class DocumentService:
     async def process_document(self, filename: str, content: bytes, content_type: str) -> str:
         """
         Process uploaded document and add to RAG service.
+        For PDFs, also extracts existing highlights with color information.
         Returns document ID.
         """
         try:
             # Generate unique document ID
             doc_id = str(uuid.uuid4())
-            
+
+            # Save file temporarily for processing
+            temp_path = os.path.join(self.storage_path, filename)
+            with open(temp_path, "wb") as f:
+                f.write(content)
+
             # Extract text based on file type
             text = await self._extract_text(content, filename, content_type)
-            
+
             if not text:
                 raise ValueError(f"Could not extract text from {filename}")
-            
+
             # Split text into chunks
             chunks = self._split_text(text)
-            
+
             print(f"📄 Generating embeddings for {len(chunks)} chunks from {filename}...")
-            
+
             # Generate embeddings for all chunks
             embeddings = self.embedding_service.batch_generate_embeddings(chunks)
-            
+
             # Create document chunks with metadata AND embeddings
             doc_chunks = [
                 {
                     "content": chunk,
-                    "embedding": embedding,  # ← NEW: Add embedding vector
+                    "embedding": embedding,
                     "document_id": doc_id,
                     "filename": filename,
                     "chunk_index": i,
-                    "total_chunks": len(chunks)
+                    "total_chunks": len(chunks),
+                    "content_type": "document"  # Regular document content
                 }
                 for i, (chunk, embedding) in enumerate(zip(chunks, embeddings))
             ]
-            
+
             print(f"✅ Generated {len(embeddings)} embeddings for {filename}")
-            
-            # Add to RAG service
-            self.rag_service.add_documents_to_store(doc_chunks)
-            
+
+            # FOR PDFs: Extract highlights with colors
+            highlight_chunks = []
+            if filename.endswith('.pdf'):
+                highlights = self._extract_pdf_highlights(temp_path)
+
+                if highlights:
+                    print(f"🎨 Processing {len(highlights)} highlights from PDF...")
+
+                    # Group highlights by color
+                    highlights_by_color = {}
+                    for hl in highlights:
+                        color = hl['color']
+                        if color not in highlights_by_color:
+                            highlights_by_color[color] = []
+                        highlights_by_color[color].append(hl)
+
+                    # Create separate chunks for each color group
+                    for color, color_highlights in highlights_by_color.items():
+                        # Combine all highlights of this color into one text
+                        highlight_text = "\n\n".join([
+                            f"[Page {hl['page']}] {hl['text']}"
+                            for hl in color_highlights
+                        ])
+
+                        # Generate embedding for this color group
+                        highlight_embedding = self.embedding_service.generate_embedding(highlight_text)
+
+                        highlight_chunks.append({
+                            "content": highlight_text,
+                            "embedding": highlight_embedding,
+                            "document_id": doc_id,
+                            "filename": filename,
+                            "content_type": "highlight",
+                            "highlight_color": color,
+                            "highlight_count": len(color_highlights)
+                        })
+
+                    print(f"✅ Processed highlights: {', '.join([f'{count} {color}' for color, highlights in highlights_by_color.items() for count in [len(highlights)]])}")
+
+            # Add both regular chunks and highlight chunks to RAG service
+            all_chunks = doc_chunks + highlight_chunks
+            self.rag_service.add_documents_to_store(all_chunks)
+
             # Store document metadata
             self.documents[doc_id] = {
                 "id": doc_id,
                 "filename": filename,
                 "content_type": content_type,
                 "chunks": len(chunks),
+                "highlights": len(highlight_chunks),
                 "size": len(content)
             }
-            
+
+            # Clean up temp file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
             return doc_id
-        
+
         except Exception as e:
+            # Clean up temp file on error
+            temp_path = os.path.join(self.storage_path, filename)
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
             raise Exception(f"Error processing document: {str(e)}")
     
     def _split_text(self, text: str) -> List[str]:
@@ -139,6 +197,94 @@ class DocumentService:
         for page in reader.pages:
             text += page.extract_text() + "\n"
         return text
+
+    def _extract_pdf_highlights(self, filepath: str) -> List[Dict[str, Any]]:
+        """
+        Extract highlighted text and annotations from PDF with color information.
+        Returns list of highlights with their text, color, and page number.
+        """
+        highlights = []
+
+        try:
+            # Open PDF with PyMuPDF for annotation extraction
+            pdf_document = fitz.open(filepath)
+
+            for page_num, page in enumerate(pdf_document, start=1):
+                # Get all annotations on the page
+                annotations = page.annots()
+
+                if annotations is None:
+                    continue
+
+                for annot in annotations:
+                    # Check if it's a highlight annotation (subtype 8)
+                    if annot.type[0] == 8:  # Highlight annotation
+                        try:
+                            # Get highlighted text
+                            # Get the rectangles covered by the annotation
+                            quads = annot.vertices
+
+                            # Extract text within the highlighted area
+                            highlight_text = ""
+                            if quads:
+                                # Get bounding rectangle
+                                rect = annot.rect
+                                # Extract text in the highlighted region
+                                words = page.get_text("words", clip=rect)
+                                highlight_text = " ".join([w[4] for w in words])
+
+                            # Get annotation color (RGB values 0-1)
+                            color_values = annot.colors.get("stroke", None) or annot.colors.get("fill", None)
+
+                            if color_values:
+                                # Convert RGB to color name
+                                color_name = self._rgb_to_color_name(color_values)
+                            else:
+                                color_name = "yellow"  # Default highlight color
+
+                            if highlight_text.strip():
+                                highlights.append({
+                                    "text": highlight_text.strip(),
+                                    "color": color_name,
+                                    "page": page_num,
+                                    "type": "highlight"
+                                })
+                        except Exception as e:
+                            print(f"⚠️  Error extracting annotation on page {page_num}: {e}")
+                            continue
+
+            pdf_document.close()
+            print(f"✅ Extracted {len(highlights)} highlights from PDF")
+
+        except Exception as e:
+            print(f"❌ Error extracting highlights: {e}")
+
+        return highlights
+
+    def _rgb_to_color_name(self, rgb: Tuple[float, float, float]) -> str:
+        """
+        Convert RGB values (0-1 range) to color name.
+        Handles common highlight colors: yellow, green, red, blue, orange, pink, purple.
+        """
+        r, g, b = rgb[0] * 255, rgb[1] * 255, rgb[2] * 255
+
+        # Define color ranges
+        color_ranges = {
+            "yellow": lambda r, g, b: g > 200 and r > 200 and b < 100,
+            "green": lambda r, g, b: g > 150 and r < 150 and b < 150,
+            "red": lambda r, g, b: r > 200 and g < 100 and b < 100,
+            "blue": lambda r, g, b: b > 150 and r < 150 and g < 150,
+            "orange": lambda r, g, b: r > 200 and 100 < g < 200 and b < 100,
+            "pink": lambda r, g, b: r > 200 and g < 150 and b > 150,
+            "purple": lambda r, g, b: r > 150 and g < 150 and b > 150,
+        }
+
+        for color_name, condition in color_ranges.items():
+            if condition(r, g, b):
+                return color_name
+
+        # Default to yellow if no match
+        return "yellow"
     
     def _extract_from_docx(self, filepath: str) -> str:
         """Extract text from DOCX"""

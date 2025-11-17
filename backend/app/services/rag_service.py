@@ -119,19 +119,45 @@ class RAGService:
         """
         Semantic search using embeddings and cosine similarity.
         Returns relevant document chunks and their sources.
-        
+
+        SPECIAL HANDLING:
+        1. Detects highlight-based queries and filters by color (if specified)
+        2. Supports semantic highlight search WITHOUT color (e.g., "highlights about rigid body dynamics")
+
         BEFORE: Keyword matching (30% accuracy)
         NOW: Semantic search with embeddings (85% accuracy)
         """
         if not self.documents:
             print("⚠️  No documents in store")
             return "", []
-        
+
         try:
+            # Detect if query is about highlights/annotations
+            query_lower = query.lower()
+            highlight_colors = ["yellow", "green", "red", "blue", "orange", "pink", "purple"]
+
+            # Check for highlight-related keywords
+            highlight_keywords = ["highlight", "highlighted", "annotation", "annotate", "marked", "underlined"]
+            is_highlight_query = any(word in query_lower for word in highlight_keywords)
+
+            requested_color = None
+
+            # Check if specific color is mentioned
+            for color in highlight_colors:
+                if color in query_lower:
+                    requested_color = color
+                    break
+
             # Generate query embedding
             print(f"🔍 Searching for: '{query}'")
+            if is_highlight_query:
+                if requested_color:
+                    print(f"🎨 Detected color-specific highlight query: {requested_color}")
+                else:
+                    print(f"🎨 Detected semantic highlight query (no color specified)")
+
             query_embedding = self.embedding_service.generate_query_embedding(query)
-            
+
             # Calculate similarity with all document chunks
             similarities = []
             for doc in self.documents:
@@ -139,28 +165,70 @@ class RAGService:
                 if "embedding" not in doc:
                     print(f"⚠️  Document chunk missing embedding, skipping")
                     continue
-                
-                similarity = self.embedding_service.cosine_similarity(
-                    query_embedding,
-                    doc["embedding"]
-                )
-                similarities.append((similarity, doc))
-            
+
+                content_type = doc.get("content_type", "document")
+
+                # Filter logic for highlight queries
+                if is_highlight_query:
+                    if requested_color:
+                        # User asked for specific color - ONLY return that color
+                        if content_type == "highlight" and doc.get("highlight_color") == requested_color:
+                            # Boost similarity for matching color highlights
+                            similarity = self.embedding_service.cosine_similarity(
+                                query_embedding,
+                                doc["embedding"]
+                            ) * 1.3  # Strong boost for exact color match
+                            similarities.append((similarity, doc))
+                    else:
+                        # User asked about highlights WITHOUT specifying color
+                        # ONLY search highlights, use semantic similarity to find relevant ones
+                        if content_type == "highlight":
+                            similarity = self.embedding_service.cosine_similarity(
+                                query_embedding,
+                                doc["embedding"]
+                            )
+                            # Boost all highlights but let semantic similarity rank them
+                            similarity *= 1.2
+                            similarities.append((similarity, doc))
+                        # Exclude regular document content when querying highlights without color
+                else:
+                    # Regular query (not about highlights) - search all content normally
+                    similarity = self.embedding_service.cosine_similarity(
+                        query_embedding,
+                        doc["embedding"]
+                    )
+                    similarities.append((similarity, doc))
+
             if not similarities:
                 print("⚠️  No valid embeddings found")
                 return "", []
-            
+
             # Sort by similarity (descending) and take top k
             similarities.sort(reverse=True, key=lambda x: x[0])
             top_docs = [doc for score, doc in similarities[:top_k]]
-            
+
             # Log similarity scores
             top_scores = [score for score, _ in similarities[:top_k]]
             print(f"✅ Top {len(top_docs)} similarities: {[f'{s:.3f}' for s in top_scores]}")
-            
+
+            # Log if highlights were returned
+            highlight_docs = [d for d in top_docs if d.get("content_type") == "highlight"]
+            if highlight_docs:
+                colors = [d.get("highlight_color") for d in highlight_docs]
+                print(f"🎨 Returning {len(highlight_docs)} highlight chunks: {colors}")
+
             # Build context string
-            context = "\n\n".join([doc["content"] for doc in top_docs])
-            
+            context_parts = []
+            for doc in top_docs:
+                if doc.get("content_type") == "highlight":
+                    color = doc.get("highlight_color", "unknown")
+                    count = doc.get("highlight_count", 0)
+                    context_parts.append(f"**{color.upper()} HIGHLIGHTS ({count} sections):**\n{doc['content']}")
+                else:
+                    context_parts.append(doc["content"])
+
+            context = "\n\n---\n\n".join(context_parts)
+
             # Build sources list
             sources = [
                 {
@@ -169,9 +237,9 @@ class RAGService:
                 }
                 for doc in top_docs
             ]
-            
+
             return context, sources
-        
+
         except Exception as e:
             print(f"❌ Error in semantic search: {str(e)}")
             # Fallback to empty context
@@ -431,5 +499,19 @@ REMEMBER: Output ONLY the JSON array. No additional text before or after."""
             if detected[1] >= 2:  # Require at least 2 pattern matches
                 print(f"🔍 Detected language: {detected[0]} (confidence: {detected[1]} patterns)")
                 return detected[0]
-        
+
         return ""
+
+# Singleton instance
+_rag_service_instance = None
+
+def get_rag_service() -> RAGService:
+    """
+    Get or create singleton RAG service instance.
+    Ensures all modules share the same document store.
+    """
+    global _rag_service_instance
+    if _rag_service_instance is None:
+        _rag_service_instance = RAGService()
+        print("✅ Created new RAG service singleton instance")
+    return _rag_service_instance

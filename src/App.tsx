@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './lib/firebase';
 import LandingPage from './components/LandingPage';
 import Dashboard from './components/Dashboard';
@@ -18,19 +17,35 @@ function App() {
   // Listen to Firebase auth state changes
   useEffect(() => {
     console.log('🔥 Setting up Firebase auth state listener...');
-    
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+
+    // Check if Firebase auth is available
+    if (!auth || typeof auth.onAuthStateChanged !== 'function') {
+      console.warn('⚠️  Firebase auth not available');
+      console.log('🔓 DEV MODE: Creating mock user for testing');
+
+      // Create a mock user for dev mode
+      const mockUser: User = {
+        name: 'Dev User',
+        email: 'dev@localhost.test'
+      };
+
+      setUser(mockUser);
+      setAuthLoading(false);
+      return;
+    }
+
+    const unsubscribe = auth.onAuthStateChanged((firebaseUser: any) => {
       if (firebaseUser) {
         console.log('✅ User is signed in:', firebaseUser.email);
-        
+
         // Create user object from Firebase user
         const user: User = {
           name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
           email: firebaseUser.email || '',
         };
-        
+
         setUser(user);
-        
+
         // Check if we should navigate to dashboard
         const storedView = localStorage.getItem('studysync_last_view');
         if (storedView === 'dashboard') {
@@ -41,7 +56,7 @@ function App() {
         setUser(null);
         setCurrentView('landing');
       }
-      
+
       setAuthLoading(false);
     });
 

@@ -21,6 +21,13 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
     setLoading(true);
     setError('');
 
+    // Check if Firebase is configured
+    if (!auth || !googleProvider) {
+      setError('Firebase authentication is not configured. Please set up Firebase credentials in .env.local file.');
+      setLoading(false);
+      return;
+    }
+
     try {
       console.log('🔑 Attempting Google sign-in with popup...');
       const result = await signInWithPopup(auth, googleProvider);
@@ -78,6 +85,13 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    // Check if Firebase is configured
+    if (!auth || typeof signInWithEmailAndPassword !== 'function') {
+      setError('Firebase authentication is not configured. Please set up Firebase credentials in .env.local file.');
+      setLoading(false);
+      return;
+    }
 
     try {
       let result;
