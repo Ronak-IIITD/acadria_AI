@@ -62,6 +62,8 @@ def initialize_firebase():
 # Security scheme for Bearer token
 # auto_error=False in DEV_MODE to allow requests without auth header
 security = HTTPBearer(auto_error=not DEV_MODE)
+# Separate security instance for optional authentication
+optional_security = HTTPBearer(auto_error=False)
 
 
 async def verify_firebase_token(
@@ -155,7 +157,7 @@ async def get_current_user(
 
 
 async def optional_auth(
-    credentials: Optional[HTTPAuthorizationCredentials] = Security(security, auto_error=False)
+    credentials: Optional[HTTPAuthorizationCredentials] = Security(optional_security)
 ) -> Optional[dict]:
     """
     Optional authentication - returns user data if token provided, None otherwise.

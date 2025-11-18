@@ -19,9 +19,9 @@ class RAGService:
         api_key = os.getenv("GEMINI_API_KEY")
         if api_key:
             genai.configure(api_key=api_key)
-            # Default to Flash model
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
-            self.model_name = 'gemini-1.5-flash'
+            # Default to Flash model (fast, available)
+            self.model = genai.GenerativeModel('gemini-flash-latest')
+            self.model_name = 'gemini-flash-latest'
         else:
             print("WARNING: GEMINI_API_KEY not set. API calls will fail.")
             self.model = None
@@ -41,12 +41,22 @@ class RAGService:
         Switch between Gemini models dynamically.
         Supported: 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'
         """
-        if model_name in ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp']:
-            self.model = genai.GenerativeModel(model_name)
-            self.model_name = model_name
-            print(f"✅ Switched to model: {model_name}")
-        else:
-            print(f"⚠️  Unknown model: {model_name}, keeping current model")
+        # Map model names to available models
+        model_mapping = {
+            'gemini-1.5-flash': 'gemini-flash-latest',
+            'gemini-1.5-pro': 'gemini-pro-latest',
+            'gemini-flash': 'gemini-flash-latest',
+            'gemini-2.0-flash-exp': 'gemini-2.0-flash-exp'
+        }
+
+        actual_model = model_mapping.get(model_name, model_name)
+
+        try:
+            self.model = genai.GenerativeModel(actual_model)
+            self.model_name = actual_model
+            print(f"✅ Switched to model: {actual_model}")
+        except Exception as e:
+            print(f"⚠️  Error switching model: {e}, keeping current model")
     
     async def generate_response(self, query: str, use_web_search: bool = False, level_up_mode: bool = False) -> ChatResponse:
         """
@@ -83,6 +93,7 @@ class RAGService:
             for attempt in range(MAX_RETRIES):
                 try:
                     print(f"🤖 Attempting to generate response with {self.model_name} (attempt {attempt + 1}/{MAX_RETRIES})")
+                    # Generate content (JSON will be enforced through prompt)
                     response = self.model.generate_content(prompt)
                     raw_answer = response.text
 
@@ -356,16 +367,16 @@ class RAGService:
     
     def _build_prompt(self, query: str, context: str, use_web_search: bool, level_up_mode: bool = False) -> str:
         """Build prompt with context and instructions - STRUCTURED JSON OUTPUT ONLY"""
-        
+
         # Detect programming language from context
         detected_language = self._detect_language_from_context(context)
         language_instruction = ""
         if detected_language:
             language_instruction = f"\n**DETECTED PROGRAMMING LANGUAGE IN DOCUMENTS: {detected_language.upper()}**\n**YOU MUST USE {detected_language.upper()} IN ALL CODE EXAMPLES - NO OTHER LANGUAGE!**\n"
-        
+
         # Default to Java if no language detected but context suggests programming
         default_language = detected_language or "java"
-        
+
         # Level Up+ mode adjustments
         depth_instruction = ""
         if level_up_mode:
@@ -379,9 +390,16 @@ You are in ENHANCED LEARNING MODE. Provide:
 5. **Learning Path**: Suggest related topics to explore next
 6. **Industry Context**: Explain real-world applications and industry standards
 """
-        
+
         # CRITICAL: Force model to return structured JSON with pure LaTeX and code blocks
-        prompt = f"""You are an AI assistant that outputs ONLY JSON. ALWAYS return valid JSON (no commentary, no extra text).
+        prompt = f"""You are StudySync AI — a calm, knowledgeable, and helpful academic assistant for students.
+
+**🚨 CRITICAL GROUNDING RULE - YOU MUST FOLLOW THIS:**
+You answer questions using ONLY the content provided in the uploaded documents below.
+Do NOT hallucinate or invent facts. Do NOT use external knowledge.
+If the answer is not found in the context below, you MUST politely say: "I don't have that information in your uploaded notes. Please upload relevant documents or rephrase your question."
+
+You output ONLY JSON. ALWAYS return valid JSON (no commentary, no extra text).
 {depth_instruction}
 **SYSTEM INSTRUCTION - MANDATORY FORMAT RULES:**
 You MUST follow these formatting rules in EVERY response:
@@ -436,8 +454,8 @@ Return a JSON array of content blocks with this EXACT structure:
   {{"type":"text","value":"```python\\ncode```"}}     ← Code must be in code block!
 ]
 
-**IMPORTANT CONTEXT FROM UPLOADED DOCUMENTS (YOU MUST USE THIS):**
-{context if context else "No documents have been uploaded yet. Please remind the user to upload documents for context-aware answers."}
+**📚 UPLOADED DOCUMENT CONTEXT (YOUR ONLY SOURCE OF INFORMATION):**
+{context if context else "⚠️ NO DOCUMENTS UPLOADED - User needs to upload study materials first."}
 
 **Chat History:**
 {self._format_chat_history()}
@@ -445,14 +463,14 @@ Return a JSON array of content blocks with this EXACT structure:
 **Student's Question:**
 {query}
 
-**CRITICAL INSTRUCTIONS:**
-- **IF DOCUMENTS ARE UPLOADED:** Base your ENTIRE answer on the provided document context above
-- **IF NO DOCUMENTS:** Inform the user that no documents are uploaded and suggest uploading relevant study materials
-- **NEVER IGNORE THE CONTEXT:** Your answer MUST reference and use information from the uploaded documents
+**🚨 CRITICAL GROUNDING INSTRUCTIONS - READ CAREFULLY:**
+{'- **NO CONTEXT AVAILABLE:** The user has not uploaded any documents yet. You MUST respond with: "I don\'t have any documents to reference. Please upload your study materials (PDFs, notes, etc.) so I can help you with specific content from them."' if not context else f'''- **USE ONLY THE CONTEXT ABOVE:** Base your ENTIRE answer on the document context provided above
+- **NEVER USE EXTERNAL KNOWLEDGE:** Do not invent, assume, or recall information not present in the context
+- **IF INFORMATION IS MISSING:** If the context does not contain information to answer the question, respond with: "I don't have that specific information in your uploaded documents. The context I found discusses [briefly mention what the context contains], but doesn't cover [what the user asked about]. Please try rephrasing your question or upload additional materials."
+- **CITE YOUR SOURCES:** Reference specific parts of the documents when answering
+- **STAY GROUNDED:** Every statement must be traceable back to the provided context'''}
 - **MANDATORY: Follow the system formatting rules above**
 - **YOU MUST USE {default_language.upper()} for ALL code examples unless explicitly asked otherwise**
-- Cite specific sections from the documents when answering
-- If the question cannot be answered from the documents, say so clearly
 - **RESPONSE STRUCTURE (MUST FOLLOW):**
   1. **Bold Heading** with topic name
   2. Brief summary paragraph ({f'4-5 sentences with depth' if level_up_mode else '2-3 sentences'})
@@ -497,22 +515,22 @@ REMEMBER: Output ONLY the JSON array. No additional text before or after."""
         
         return "\n".join(formatted)
     
-    def _generate_suggestions(self, query: str, answer: str) -> List[str]:
+    def _generate_suggestions(self, query: str, answer: str) -> List[Dict[str, str]]:
         """Generate follow-up question suggestions"""
         suggestions = [
-            "Can you explain this in simpler terms?",
-            "Can you provide an example?",
-            "What are the key points I should remember?"
+            {"displayText": "Explain in simpler terms", "query": "Can you explain this in simpler terms?"},
+            {"displayText": "Show me an example", "query": "Can you provide an example?"},
+            {"displayText": "Key points to remember", "query": "What are the key points I should remember?"}
         ]
-        
+
         # Add context-aware suggestions based on query
         if "how" in query.lower():
-            suggestions.append("Can you show me the step-by-step process?")
+            suggestions.append({"displayText": "Step-by-step process", "query": "Can you show me the step-by-step process?"})
         elif "what" in query.lower():
-            suggestions.append("How is this used in practice?")
+            suggestions.append({"displayText": "Practical usage", "query": "How is this used in practice?"})
         elif "why" in query.lower():
-            suggestions.append("What are some real-world applications?")
-        
+            suggestions.append({"displayText": "Real-world applications", "query": "What are some real-world applications?"})
+
         return suggestions[:3]
     
     def clear_history(self):

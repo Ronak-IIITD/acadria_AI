@@ -19,16 +19,21 @@ class GrokService:
         """Initialize Grok client"""
         api_key = os.getenv("GROK_API_KEY")
         if api_key:
-            # Grok uses OpenAI-compatible API with different base URL
-            self.client = OpenAI(
-                api_key=api_key,
-                base_url="https://api.x.ai/v1"
-            )
-            print("✅ Grok service initialized")
+            try:
+                # Grok uses OpenAI-compatible API with different base URL
+                self.client = OpenAI(
+                    api_key=api_key,
+                    base_url="https://api.x.ai/v1"
+                )
+                print("✅ Grok service initialized")
+            except Exception as e:
+                print(f"⚠️  WARNING: Failed to initialize Grok client: {str(e)}")
+                print("⚠️  Grok model will not be available. Gemini will still work.")
+                self.client = None
         else:
             print("⚠️  WARNING: GROK_API_KEY not set. Grok calls will fail.")
             self.client = None
-        
+
         # Chat history
         self.chat_history: List[Dict[str, str]] = []
     
@@ -119,7 +124,7 @@ class GrokService:
     
     def _build_prompt(self, query: str, context: str, use_web_search: bool, level_up_mode: bool = False) -> str:
         """Build prompt with context and instructions"""
-        
+
         # Level Up+ mode instruction
         depth_instruction = ""
         if level_up_mode:
@@ -133,8 +138,15 @@ Provide ENHANCED responses with:
 - Industry context and real-world applications
 - Related topics for further learning
 """
-        
-        prompt = f"""You are an assistant that outputs structured responses. ALWAYS return valid JSON.
+
+        prompt = f"""You are StudySync AI — a calm, knowledgeable, and helpful academic assistant for students.
+
+**🚨 CRITICAL GROUNDING RULE - YOU MUST FOLLOW THIS:**
+You answer questions using ONLY the content provided in the uploaded documents below.
+Do NOT hallucinate or invent facts. Do NOT use external knowledge.
+If the answer is not found in the context below, you MUST politely say: "I don't have that information in your uploaded notes. Please upload relevant documents or rephrase your question."
+
+You are an assistant that outputs structured responses. ALWAYS return valid JSON.
 {depth_instruction}
 **FORMAT REQUIREMENT:**
 Return a JSON array of content blocks:
@@ -150,8 +162,8 @@ Return a JSON array of content blocks:
 4. Use \\frac{{}}{{}}, \\sqrt{{}}, ^{{}}, _{{}} for LaTeX formatting
 {f'5. LEVEL UP+ MODE: Provide comprehensive coverage with {5-7 if level_up_mode else 3-5} key points, multiple examples, and expert insights' if level_up_mode else ''}
 
-**Context from uploaded documents:**
-{context if context else "No relevant documents found."}
+**📚 UPLOADED DOCUMENT CONTEXT (YOUR ONLY SOURCE OF INFORMATION):**
+{context if context else "⚠️ NO DOCUMENTS UPLOADED - User needs to upload study materials first."}
 
 **Chat History:**
 {self._format_chat_history()}
@@ -159,12 +171,13 @@ Return a JSON array of content blocks:
 **Student's Question:**
 {query}
 
-**Instructions:**
-- Provide {'comprehensive, expert-level' if level_up_mode else 'accurate'} answers based on the context
-- If context doesn't have info, say so clearly
-- Use examples appropriate for {'advanced' if level_up_mode else ''} students
-- Cite specific parts of documents when relevant
-{f'- LEVEL UP+ MODE: Go beyond basics - explain WHY, provide multiple approaches, discuss trade-offs, and suggest next learning steps' if level_up_mode else ''}
+**🚨 CRITICAL GROUNDING INSTRUCTIONS - READ CAREFULLY:**
+{'- **NO CONTEXT AVAILABLE:** The user has not uploaded any documents yet. You MUST respond with: "I don\'t have any documents to reference. Please upload your study materials (PDFs, notes, etc.) so I can help you with specific content from them."' if not context else f'''- **USE ONLY THE CONTEXT ABOVE:** Base your ENTIRE answer on the document context provided above
+- **NEVER USE EXTERNAL KNOWLEDGE:** Do not invent, assume, or recall information not present in the context
+- **IF INFORMATION IS MISSING:** If the context does not contain information to answer the question, respond with: "I don't have that specific information in your uploaded documents. The context I found discusses [briefly mention what the context contains], but doesn't cover [what the user asked about]. Please try rephrasing your question or upload additional materials."
+- **CITE YOUR SOURCES:** Reference specific parts of the documents when answering
+- **STAY GROUNDED:** Every statement must be traceable back to the provided context'''}
+{f'- **LEVEL UP+ MODE:** Go beyond basics - explain WHY, provide multiple approaches, discuss trade-offs, and suggest next learning steps' if level_up_mode else ''}
 
 Output ONLY the JSON array. No additional text."""
         

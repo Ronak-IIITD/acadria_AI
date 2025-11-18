@@ -87,22 +87,31 @@ def validate_ai_blocks(raw_text: str) -> List[Dict[str, str]]:
         block_type = block['type']
         block_value = block['value']
         
-        if block_type not in ['text', 'math']:
+        if block_type not in ['text', 'math', 'code']:
             raise ValueError(f"Block {i} has invalid type: {block_type}")
-        
+
         # Sanitize based on type
         if block_type == 'math':
             # Normalize LaTeX
             normalized = normalize_latex(str(block_value))
-            
+
             # Validation: ensure no angle brackets remain in math
             if re.search(r'[<>]', normalized):
                 raise ValueError(f"Block {i}: Illegal characters in LaTeX")
-            
+
             validated_blocks.append({
                 'type': 'math',
                 'value': normalized
             })
+        elif block_type == 'code':
+            # Code block - preserve as is, include language if present
+            code_block = {
+                'type': 'code',
+                'value': str(block_value)
+            }
+            if 'language' in block:
+                code_block['language'] = str(block['language'])
+            validated_blocks.append(code_block)
         else:
             # Text block - just ensure it's a string
             validated_blocks.append({
