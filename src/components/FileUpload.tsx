@@ -279,7 +279,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFilesAdded }) => {
 
       // Then, upload to backend for RAG processing
       console.log('📤 Uploading files to backend for RAG processing...');
-      const filesToUpload = Array.from(filesToProcess || []);
+      const filesToUpload = [...validFiles];
 
       uploadDocumentsToBackend(filesToUpload).then(result => {
         if (result.success) {

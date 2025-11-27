@@ -4,7 +4,7 @@ Uses Google's embedding API (no local models) for semantic search.
 """
 
 import os
-from typing import List
+from typing import List, Optional
 import numpy as np
 import google.generativeai as genai
 
@@ -18,13 +18,20 @@ class EmbeddingService:
     def __init__(self):
         """Initialize Gemini API for embeddings"""
         api_key = os.getenv("GEMINI_API_KEY")
+        self.api_available = False
+
         if api_key:
             genai.configure(api_key=api_key)
+            self.api_available = True
             print("✅ Embedding service initialized with Gemini API")
         else:
-            print("⚠️  WARNING: GEMINI_API_KEY not set. Embeddings will fail.")
+            print("⚠️  WARNING: GEMINI_API_KEY not set. Falling back to keyword search.")
     
-    def generate_embedding(self, text: str) -> List[float]:
+    def is_available(self) -> bool:
+        """Return True if remote embeddings can be generated"""
+        return self.api_available
+
+    def generate_embedding(self, text: str) -> Optional[List[float]]:
         """
         Generate embedding for a single text using Gemini API.
         
@@ -37,6 +44,9 @@ class EmbeddingService:
         Raises:
             Exception: If API call fails
         """
+        if not self.api_available:
+            return None
+
         try:
             # Call Gemini embedding API
             result = genai.embed_content(
@@ -51,9 +61,9 @@ class EmbeddingService:
         
         except Exception as e:
             print(f"❌ Error generating embedding: {str(e)}")
-            raise
+            return None
     
-    def generate_query_embedding(self, query: str) -> List[float]:
+    def generate_query_embedding(self, query: str) -> Optional[List[float]]:
         """
         Generate embedding for a search query using Gemini API.
         Uses query-specific task type for better retrieval.
@@ -64,6 +74,9 @@ class EmbeddingService:
         Returns:
             List of 768 floats representing the query embedding
         """
+        if not self.api_available:
+            return None
+
         try:
             result = genai.embed_content(
                 model="models/embedding-001",
@@ -75,9 +88,9 @@ class EmbeddingService:
         
         except Exception as e:
             print(f"❌ Error generating query embedding: {str(e)}")
-            raise
+            return None
     
-    def batch_generate_embeddings(self, texts: List[str]) -> List[List[float]]:
+    def batch_generate_embeddings(self, texts: List[str]) -> List[Optional[List[float]]]:
         """
         Generate embeddings for multiple texts (with rate limiting consideration).
         
@@ -87,7 +100,11 @@ class EmbeddingService:
         Returns:
             List of embeddings (one per text)
         """
-        embeddings = []
+        embeddings: List[Optional[List[float]]] = []
+
+        if not self.api_available:
+            # Preserve alignment with texts so upstream logic can fall back
+            return [None for _ in texts]
         
         for i, text in enumerate(texts):
             try:
@@ -99,14 +116,13 @@ class EmbeddingService:
             
             except Exception as e:
                 print(f"⚠️  Failed to embed text {i}: {str(e)}")
-                # Return zero vector as fallback
-                embeddings.append([0.0] * 768)
+                embeddings.append(None)
         
         print(f"✅ Generated {len(embeddings)} embeddings total")
         return embeddings
     
     @staticmethod
-    def cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
+    def cosine_similarity(vec1: Optional[List[float]], vec2: Optional[List[float]]) -> float:
         """
         Calculate cosine similarity between two vectors.
         
@@ -120,6 +136,9 @@ class EmbeddingService:
         Returns:
             Similarity score (0.0 to 1.0 typically)
         """
+        if vec1 is None or vec2 is None:
+            return 0.0
+
         try:
             # Convert to numpy arrays for efficient computation
             a = np.array(vec1, dtype=np.float32)

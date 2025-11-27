@@ -522,11 +522,18 @@ export const getAiResponse = async (
         }
 
         const context = contentChunks.join('\n\n---\n\n');
-        
+
         console.log(`Context size: ${totalContextSize} characters, ${contentChunks.length} chunks from ${contextFiles.length} file(s)`);
-        
-        // Use structured JSON prompt
-        const prompt = `You are an assistant that outputs ONLY JSON. ALWAYS return valid JSON (no commentary, no extra text).
+
+        // Use structured JSON prompt with grounding
+        const prompt = `You are StudySync AI — a calm, knowledgeable, and helpful academic assistant for students.
+
+**🚨 CRITICAL GROUNDING RULE - YOU MUST FOLLOW THIS:**
+You answer questions using ONLY the content provided in the uploaded documents below.
+Do NOT hallucinate or invent facts. Do NOT use external knowledge.
+If the answer is not found in the context below, you MUST politely say: "I don't have that information in your uploaded notes. Please upload relevant documents or rephrase your question."
+
+You are an assistant that outputs ONLY JSON. ALWAYS return valid JSON (no commentary, no extra text).
 
 **CRITICAL FORMAT REQUIREMENT:**
 Return a JSON array of content blocks with this EXACT structure:
@@ -566,10 +573,17 @@ Return a JSON array of content blocks with this EXACT structure:
   {"type":"text","value":"backtick-python-newline-code-backtick"}     Code must be in code block!
 ]
 
-**Context from documents:**
-\${context || "No documents provided."}
+**📚 UPLOADED DOCUMENT CONTEXT (YOUR ONLY SOURCE OF INFORMATION):**
+\${context || "⚠️ NO DOCUMENTS PROVIDED - User needs to provide context."}
 
 **Question:** \${question}
+
+**🚨 CRITICAL GROUNDING INSTRUCTIONS - READ CAREFULLY:**
+${context ? `- **USE ONLY THE CONTEXT ABOVE:** Base your ENTIRE answer on the document context provided above
+- **NEVER USE EXTERNAL KNOWLEDGE:** Do not invent, assume, or recall information not present in the context
+- **IF INFORMATION IS MISSING:** If the context does not contain information to answer the question, respond with: "I don't have that specific information in your uploaded documents. Please upload additional materials or rephrase your question."
+- **CITE YOUR SOURCES:** Reference specific parts of the documents when answering
+- **STAY GROUNDED:** Every statement must be traceable back to the provided context` : `- **NO CONTEXT AVAILABLE:** Respond with: "I don't have any documents to reference. Please upload your study materials so I can help you."`}
 
 **Instructions:**
 - **FORMATTING REQUIREMENTS:**
@@ -603,6 +617,9 @@ Object-oriented programming (OOP) is a programming paradigm based on the concept
         const modelConfig = {
             model: 'gemini-2.5-flash',
             contents: prompt,
+            generationConfig: {
+                responseMimeType: "application/json"
+            }
         };
 
         const response = await ai.models.generateContent(modelConfig);

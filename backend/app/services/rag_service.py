@@ -1,7 +1,7 @@
 import os
 import json
 import time
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import google.generativeai as genai
 from app.models.schemas import ChatResponse, ContentBlock
 from app.utils.ai_validator import validate_ai_blocks, extract_suggestions_and_sources
@@ -268,7 +268,6 @@ class RAGService:
                     requested_color = color
                     break
 
-            # Generate query embedding
             print(f"🔍 Searching for: '{query}'")
             if is_highlight_query:
                 if requested_color:
@@ -276,94 +275,155 @@ class RAGService:
                 else:
                     print(f"🎨 Detected semantic highlight query (no color specified)")
 
-            query_embedding = self.embedding_service.generate_query_embedding(query)
+            # Attempt semantic search first
+            query_embedding: Optional[List[float]] = None
+            if self.embedding_service.is_available():
+                query_embedding = self.embedding_service.generate_query_embedding(query)
+                if query_embedding is None:
+                    print("⚠️ Failed to generate query embedding - will fall back to keyword search")
+            else:
+                print("ℹ️ Embedding service unavailable - using keyword search fallback")
 
-            # Calculate similarity with all document chunks
-            similarities = []
-            for doc in self.documents:
-                # Check if document has embedding (backward compatibility)
-                if "embedding" not in doc:
-                    print(f"⚠️  Document chunk missing embedding, skipping")
-                    continue
+            if query_embedding is not None:
+                similarities = []
+                for doc in self.documents:
+                    doc_embedding = doc.get("embedding")
+                    if doc_embedding is None:
+                        continue
 
-                content_type = doc.get("content_type", "document")
+                    content_type = doc.get("content_type", "document")
 
-                # Filter logic for highlight queries
-                if is_highlight_query:
-                    if requested_color:
-                        # User asked for specific color - ONLY return that color
-                        if content_type == "highlight" and doc.get("highlight_color") == requested_color:
-                            # Boost similarity for matching color highlights
-                            similarity = self.embedding_service.cosine_similarity(
-                                query_embedding,
-                                doc["embedding"]
-                            ) * 1.3  # Strong boost for exact color match
-                            similarities.append((similarity, doc))
+                    # Filter logic for highlight queries
+                    if is_highlight_query:
+                        if requested_color:
+                            if content_type == "highlight" and doc.get("highlight_color") == requested_color:
+                                similarity = self.embedding_service.cosine_similarity(
+                                    query_embedding,
+                                    doc_embedding
+                                ) * 1.3
+                                similarities.append((similarity, doc))
+                        else:
+                            if content_type == "highlight":
+                                similarity = self.embedding_service.cosine_similarity(
+                                    query_embedding,
+                                    doc_embedding
+                                )
+                                similarity *= 1.2
+                                similarities.append((similarity, doc))
                     else:
-                        # User asked about highlights WITHOUT specifying color
-                        # ONLY search highlights, use semantic similarity to find relevant ones
-                        if content_type == "highlight":
-                            similarity = self.embedding_service.cosine_similarity(
-                                query_embedding,
-                                doc["embedding"]
-                            )
-                            # Boost all highlights but let semantic similarity rank them
-                            similarity *= 1.2
-                            similarities.append((similarity, doc))
-                        # Exclude regular document content when querying highlights without color
-                else:
-                    # Regular query (not about highlights) - search all content normally
-                    similarity = self.embedding_service.cosine_similarity(
-                        query_embedding,
-                        doc["embedding"]
-                    )
-                    similarities.append((similarity, doc))
+                        similarity = self.embedding_service.cosine_similarity(
+                            query_embedding,
+                            doc_embedding
+                        )
+                        similarities.append((similarity, doc))
 
-            if not similarities:
-                print("⚠️  No valid embeddings found")
-                return "", []
+                if similarities:
+                    similarities.sort(reverse=True, key=lambda x: x[0])
+                    top_docs = [doc for score, doc in similarities[:top_k]]
 
-            # Sort by similarity (descending) and take top k
-            similarities.sort(reverse=True, key=lambda x: x[0])
-            top_docs = [doc for score, doc in similarities[:top_k]]
+                    top_scores = [score for score, _ in similarities[:top_k]]
+                    print(f"✅ Top {len(top_docs)} similarities: {[f'{s:.3f}' for s in top_scores]}")
 
-            # Log similarity scores
-            top_scores = [score for score, _ in similarities[:top_k]]
-            print(f"✅ Top {len(top_docs)} similarities: {[f'{s:.3f}' for s in top_scores]}")
+                    return self._build_context_from_docs(top_docs)
 
-            # Log if highlights were returned
-            highlight_docs = [d for d in top_docs if d.get("content_type") == "highlight"]
-            if highlight_docs:
-                colors = [d.get("highlight_color") for d in highlight_docs]
-                print(f"🎨 Returning {len(highlight_docs)} highlight chunks: {colors}")
+                print("⚠️ Semantic search returned no matches - switching to keyword fallback")
 
-            # Build context string
-            context_parts = []
-            for doc in top_docs:
-                if doc.get("content_type") == "highlight":
-                    color = doc.get("highlight_color", "unknown")
-                    count = doc.get("highlight_count", 0)
-                    context_parts.append(f"**{color.upper()} HIGHLIGHTS ({count} sections):**\n{doc['content']}")
-                else:
-                    context_parts.append(doc["content"])
-
-            context = "\n\n---\n\n".join(context_parts)
-
-            # Build sources list
-            sources = [
-                {
-                    "title": doc["filename"],
-                    "page": doc.get("chunk_index", 0) + 1
-                }
-                for doc in top_docs
-            ]
-
-            return context, sources
+            # Fallback to lightweight keyword search
+            return self._keyword_search(query_lower, is_highlight_query, requested_color, top_k)
 
         except Exception as e:
             print(f"❌ Error in semantic search: {str(e)}")
-            # Fallback to empty context
+            # Fallback to keyword search before giving up
+            return self._keyword_search(query.lower(), False, None, top_k)
+
+    def _keyword_search(
+        self,
+        query_lower: str,
+        is_highlight_query: bool,
+        requested_color: Optional[str],
+        top_k: int
+    ) -> tuple[str, List[Dict[str, Any]]]:
+        """
+        Lightweight keyword matching fallback when embeddings are unavailable.
+        """
+        print("🔎 Using keyword fallback for context retrieval")
+        stop_words = {
+            "what", "when", "where", "who", "why", "how", "is", "are", "the", "and", "a", "an",
+            "in", "on", "at", "to", "for", "of", "with", "by", "from", "about", "as", "can",
+            "could", "would", "should", "do", "does", "did", "have", "has", "had", "be", "been",
+            "being", "was", "were", "your", "my", "their"
+        }
+
+        keywords = [
+            word for word in query_lower.replace("-", " ").split()
+            if len(word) > 2 and word not in stop_words
+        ]
+
+        scored_docs = []
+        for doc in self.documents:
+            content_type = doc.get("content_type", "document")
+
+            if is_highlight_query:
+                if requested_color:
+                    if not (content_type == "highlight" and doc.get("highlight_color") == requested_color):
+                        continue
+                else:
+                    if content_type != "highlight":
+                        continue
+
+            text = doc.get("content", "")
+            text_lower = text.lower()
+
+            if not keywords:
+                score = len(text_lower)
+            else:
+                score = sum(text_lower.count(keyword) for keyword in keywords)
+
+            if score > 0:
+                # Slight boost for earlier chunks
+                score += max(0, 3 - doc.get("chunk_index", 0))
+                scored_docs.append((score, doc))
+
+        if not scored_docs:
+            print("⚠️ Keyword fallback found no matches")
             return "", []
+
+        scored_docs.sort(reverse=True, key=lambda x: x[0])
+        top_docs = [doc for score, doc in scored_docs[:top_k]]
+        print(f"✅ Keyword fallback returning {len(top_docs)} chunk(s)")
+
+        return self._build_context_from_docs(top_docs)
+
+    def _build_context_from_docs(self, docs: List[Dict[str, Any]]) -> tuple[str, List[Dict[str, Any]]]:
+        """Build context string and metadata from selected documents."""
+        if not docs:
+            return "", []
+
+        highlight_docs = [d for d in docs if d.get("content_type") == "highlight"]
+        if highlight_docs:
+            colors = [d.get("highlight_color") for d in highlight_docs]
+            print(f"🎨 Returning {len(highlight_docs)} highlight chunks: {colors}")
+
+        context_parts = []
+        for doc in docs:
+            if doc.get("content_type") == "highlight":
+                color = doc.get("highlight_color", "unknown")
+                count = doc.get("highlight_count", 0)
+                context_parts.append(f"**{color.upper()} HIGHLIGHTS ({count} sections):**\n{doc['content']}")
+            else:
+                context_parts.append(doc["content"])
+
+        context = "\n\n---\n\n".join(context_parts)
+
+        sources = [
+            {
+                "title": doc["filename"],
+                "page": doc.get("chunk_index", 0) + 1
+            }
+            for doc in docs
+        ]
+
+        return context, sources
     
     def _build_prompt(self, query: str, context: str, use_web_search: bool, level_up_mode: bool = False) -> str:
         """Build prompt with context and instructions - STRUCTURED JSON OUTPUT ONLY"""

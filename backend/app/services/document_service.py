@@ -1,6 +1,6 @@
 import uuid
 import os
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from PyPDF2 import PdfReader
 from docx import Document
 import markdown
@@ -73,7 +73,10 @@ class DocumentService:
                 for i, (chunk, embedding) in enumerate(zip(chunks, embeddings))
             ]
 
-            print(f"✅ Generated {len(embeddings)} embeddings for {filename}")
+            if self.embedding_service.is_available():
+                print(f"✅ Generated {len([e for e in embeddings if e is not None])} embeddings for {filename}")
+            else:
+                print(f"ℹ️ Embedding service unavailable - will use keyword fallback for {filename}")
 
             # FOR PDFs: Extract highlights with colors
             highlight_chunks = []
