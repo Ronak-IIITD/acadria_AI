@@ -548,8 +548,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQuest
                     <div className="mt-5 pt-4 border-t border-gray-200/60 dark:border-gray-700/40 w-full">
                         <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-3 px-1">Sources:</h4>
                         <div className="flex flex-wrap items-start justify-start gap-2">
-                            {msg.sources.map((sourceName, i) => {
-                                const sourceFile = files.find(f => f.name === sourceName);
+                            {msg.sources.map((source, i) => {
+                                const sourceFile = files.find(f => f.name === source.title);
                                 return (
                                     <div
                                         key={i}
@@ -557,7 +557,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQuest
                                         title={sourceName}
                                     >
                                         {sourceFile && <FileIcon type={sourceFile.type} className="h-3.5 w-3.5 mr-2 flex-shrink-0" />}
-                                        <span className="truncate">{sourceName}</span>
+                                        <span className="truncate">{source.title} (p. {source.page})</span>
                                     </div>
                                 );
                             })}

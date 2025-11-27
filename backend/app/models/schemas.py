@@ -43,7 +43,7 @@ class ContentBlock(BaseModel):
 class ChatResponse(BaseModel):
     blocks: List[ContentBlock]  # Structured blocks instead of plain text
     suggestions: List[dict] = []
-    sources: List[str] = []
+    sources: List[dict] = []
 
 class ModelInfo(BaseModel):
     id: str

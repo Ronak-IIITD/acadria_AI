@@ -102,3 +102,16 @@ async def clear_history(current_user: dict = Depends(get_current_user)):
         return {"message": "Chat history cleared successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/rag/debug")
+async def rag_debug(current_user: dict = Depends(get_current_user)):
+    """Debug endpoint to check RAG store status"""
+    try:
+        info = rag_service.get_document_info()
+        return {
+            "document_count": rag_service.get_document_count(),
+            "details": info,
+            "embedding_service_available": rag_service.embedding_service.is_available()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

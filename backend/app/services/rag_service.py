@@ -79,7 +79,14 @@ class RAGService:
                 print(f"📖 Retrieved context: {len(context)} chars from {len(sources)} sources")
                 print(f"📄 Sources: {[s['title'] for s in sources]}")
             else:
-                print("⚠️ No context retrieved - documents may not be uploaded")
+                print(f"⚠️ No context retrieved - Total documents in store: {len(self.documents)}")
+                if len(self.documents) > 0:
+                    print(f"   Available documents: {[doc.get('filename', 'unknown') for doc in self.documents[:5]]}")
+                    print("   ⚠️ Context retrieval failed - trying to return first few chunks as fallback")
+                    # Fallback: return first few chunks if retrieval failed but documents exist
+                    fallback_docs = self.documents[:min(3, len(self.documents))]
+                    context, sources = self._build_context_from_docs(fallback_docs)
+                    print(f"   ✅ Using fallback context: {len(context)} chars from {len(sources)} sources")
 
             # Build prompt with structured JSON instruction
             prompt = self._build_prompt(query, context, use_web_search, level_up_mode)
@@ -286,11 +293,16 @@ class RAGService:
 
             if query_embedding is not None:
                 similarities = []
+                docs_with_embeddings = 0
+                docs_without_embeddings = 0
+                
                 for doc in self.documents:
                     doc_embedding = doc.get("embedding")
                     if doc_embedding is None:
+                        docs_without_embeddings += 1
                         continue
-
+                    
+                    docs_with_embeddings += 1
                     content_type = doc.get("content_type", "document")
 
                     # Filter logic for highlight queries
@@ -317,6 +329,8 @@ class RAGService:
                         )
                         similarities.append((similarity, doc))
 
+                print(f"   📊 Documents with embeddings: {docs_with_embeddings}, without: {docs_without_embeddings}")
+                
                 if similarities:
                     similarities.sort(reverse=True, key=lambda x: x[0])
                     top_docs = [doc for score, doc in similarities[:top_k]]
@@ -326,7 +340,10 @@ class RAGService:
 
                     return self._build_context_from_docs(top_docs)
 
-                print("⚠️ Semantic search returned no matches - switching to keyword fallback")
+                if docs_without_embeddings > 0:
+                    print(f"⚠️ Semantic search found no matches, but {docs_without_embeddings} docs lack embeddings - using keyword fallback")
+                else:
+                    print("⚠️ Semantic search returned no matches - switching to keyword fallback")
 
             # Fallback to lightweight keyword search
             return self._keyword_search(query_lower, is_highlight_query, requested_color, top_k)
@@ -359,6 +376,13 @@ class RAGService:
             if len(word) > 2 and word not in stop_words
         ]
 
+        # If no keywords extracted, use a more lenient approach
+        if not keywords:
+            print("   ℹ️ No keywords extracted - using first documents as fallback")
+            # Return first few documents if no keywords
+            fallback_docs = self.documents[:min(top_k, len(self.documents))]
+            return self._build_context_from_docs(fallback_docs)
+
         scored_docs = []
         for doc in self.documents:
             content_type = doc.get("content_type", "document")
@@ -374,10 +398,17 @@ class RAGService:
             text = doc.get("content", "")
             text_lower = text.lower()
 
-            if not keywords:
-                score = len(text_lower)
-            else:
-                score = sum(text_lower.count(keyword) for keyword in keywords)
+            # Calculate score based on keyword matches
+            score = sum(text_lower.count(keyword) for keyword in keywords)
+            
+            # Also check for partial matches (substrings)
+            for keyword in keywords:
+                if keyword in text_lower:
+                    score += 2  # Boost for exact keyword match
+                # Check for partial word matches
+                for word in text_lower.split():
+                    if keyword in word or word in keyword:
+                        score += 1
 
             if score > 0:
                 # Slight boost for earlier chunks
@@ -385,7 +416,12 @@ class RAGService:
                 scored_docs.append((score, doc))
 
         if not scored_docs:
-            print("⚠️ Keyword fallback found no matches")
+            print("⚠️ Keyword fallback found no matches - trying to return first documents anyway")
+            # Last resort: return first few documents even if no keyword matches
+            if self.documents:
+                fallback_docs = self.documents[:min(top_k, len(self.documents))]
+                print(f"   ✅ Returning {len(fallback_docs)} documents as last resort fallback")
+                return self._build_context_from_docs(fallback_docs)
             return "", []
 
         scored_docs.sort(reverse=True, key=lambda x: x[0])
@@ -517,6 +553,8 @@ Return a JSON array of content blocks with this EXACT structure:
 **📚 UPLOADED DOCUMENT CONTEXT (YOUR ONLY SOURCE OF INFORMATION):**
 {context if context else "⚠️ NO DOCUMENTS UPLOADED - User needs to upload study materials first."}
 
+{'' if context else '**⚠️ IMPORTANT:** Since no document context was found, you MUST tell the user: "I don\'t have any documents to reference. Please upload your study materials (PDFs, notes, etc.) so I can help you with specific content from them."'}
+
 **Chat History:**
 {self._format_chat_history()}
 
@@ -602,8 +640,50 @@ REMEMBER: Output ONLY the JSON array. No additional text before or after."""
         Add document chunks to in-memory store.
         Each chunk should have: content, filename, chunk_index, etc.
         """
+        if not chunks:
+            print("⚠️ Warning: Attempted to add empty chunks list to RAG store")
+            return
+            
         self.documents.extend(chunks)
         print(f"📚 Added {len(chunks)} chunks to RAG store. Total documents now: {len(self.documents)}")
+        
+        # Log sample of what was added
+        if chunks:
+            sample_chunk = chunks[0]
+            print(f"   Sample chunk: filename={sample_chunk.get('filename', 'unknown')}, "
+                  f"content_length={len(sample_chunk.get('content', ''))}, "
+                  f"has_embedding={sample_chunk.get('embedding') is not None}")
+    
+    def get_document_count(self) -> int:
+        """Get total number of document chunks in store"""
+        return len(self.documents)
+    
+    def get_document_info(self) -> Dict[str, Any]:
+        """Get information about stored documents for debugging"""
+        if not self.documents:
+            return {"total": 0, "files": []}
+        
+        # Group by filename
+        files = {}
+        for doc in self.documents:
+            filename = doc.get("filename", "unknown")
+            if filename not in files:
+                files[filename] = {
+                    "filename": filename,
+                    "chunks": 0,
+                    "has_embeddings": 0,
+                    "content_types": {}
+                }
+            files[filename]["chunks"] += 1
+            if doc.get("embedding") is not None:
+                files[filename]["has_embeddings"] += 1
+            content_type = doc.get("content_type", "document")
+            files[filename]["content_types"][content_type] = files[filename]["content_types"].get(content_type, 0) + 1
+        
+        return {
+            "total": len(self.documents),
+            "files": list(files.values())
+        }
     
     def clear_documents(self):
         """Clear all stored documents"""
