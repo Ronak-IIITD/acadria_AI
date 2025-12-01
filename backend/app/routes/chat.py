@@ -51,6 +51,22 @@ async def chat(message: ChatMessage, current_user: dict = Depends(get_current_us
                 use_web_search=message.use_web_search,
                 level_up_mode=level_up_mode
             )
+        elif model == "gemini-2.0-flash-exp":
+            # Use Gemini 2.0 Flash Experimental
+            rag_service.set_model('gemini-2.0-flash-exp')
+            response = await rag_service.generate_response(
+                query=message.text,
+                use_web_search=message.use_web_search,
+                level_up_mode=level_up_mode
+            )
+        elif model in ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-pro"]:
+            # Use Gemini 2.5/3.0 models
+            rag_service.set_model(model)
+            response = await rag_service.generate_response(
+                query=message.text,
+                use_web_search=message.use_web_search,
+                level_up_mode=level_up_mode
+            )
         else:
             # Use Gemini 1.5 Flash (default)
             rag_service.set_model('gemini-1.5-flash')

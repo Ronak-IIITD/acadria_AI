@@ -75,7 +75,9 @@ class GrokService:
             
             # Call Grok API
             response = self.client.chat.completions.create(
-                model="grok-4",  # Grok's latest model with 2M token context
+                model="grok-beta",
+                response_format={"type": "json_object"},
+
                 messages=[
                     {"role": "system", "content": "You are a helpful AI assistant that provides accurate, well-structured answers based on provided context." + (" In Level Up+ mode, provide comprehensive, expert-level explanations with deep insights." if level_up_mode else "")},
                     {"role": "user", "content": prompt}

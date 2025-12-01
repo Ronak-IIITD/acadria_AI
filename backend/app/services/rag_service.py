@@ -46,7 +46,10 @@ class RAGService:
             'gemini-1.5-flash': 'gemini-flash-latest',
             'gemini-1.5-pro': 'gemini-pro-latest',
             'gemini-flash': 'gemini-flash-latest',
-            'gemini-2.0-flash-exp': 'gemini-2.0-flash-exp'
+            'gemini-2.0-flash-exp': 'gemini-2.0-flash-exp',
+            'gemini-2.5-flash': 'gemini-2.5-flash',
+            'gemini-2.5-pro': 'gemini-2.5-pro',
+            'gemini-3-pro': 'gemini-3-pro-preview'
         }
 
         actual_model = model_mapping.get(model_name, model_name)

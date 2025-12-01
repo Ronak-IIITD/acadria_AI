@@ -25,7 +25,8 @@ aiofiles==24.1.0
 numpy==1.26.4
 
 # Grok API (xAI)
-openai==1.54.3  # Grok uses OpenAI-compatible SDK
+openai==1.54.3
+httpx==0.27.2  # Grok uses OpenAI-compatible SDK
 
 # NOTE: Heavy ML libraries removed due to disk space constraints (5GB+):
 # - sentence-transformers, faiss-cpu, langchain (requires PyTorch ~3GB)

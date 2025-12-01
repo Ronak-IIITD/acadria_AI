@@ -38,9 +38,13 @@ const ChatInputArea: FC<ChatInputAreaProps> = ({
   textareaRef
 }) => {
   const models = [
-    { id: AiModel.GEMINI_FLASH, name: 'Gemini 2.5 Flash' },
-    { id: AiModel.GEMINI_PRO, name: 'Gemini 2.5 Pro' },
-    { id: AiModel.GROK, name: 'Grok 4' },
+    { id: AiModel.GEMINI_FLASH, name: 'Gemini 1.5 Flash' },
+    { id: AiModel.GEMINI_PRO, name: 'Gemini 1.5 Pro' },
+    { id: AiModel.GEMINI_2_0_FLASH_EXP, name: 'Gemini 2.0 Flash (Exp)' },
+    { id: AiModel.GEMINI_2_5_FLASH, name: 'Gemini 2.5 Flash' },
+    { id: AiModel.GEMINI_2_5_PRO, name: 'Gemini 2.5 Pro' },
+    { id: AiModel.GEMINI_3_PRO, name: 'Gemini 3 Pro (Preview)' },
+    { id: AiModel.GROK, name: 'Grok Beta' },
     { id: AiModel.GPT4ALL, name: 'GPT4All (Local)' },
     { id: AiModel.LLAMA2, name: 'LLaMA 2 (Local)' }
   ];
@@ -77,15 +81,13 @@ const ChatInputArea: FC<ChatInputAreaProps> = ({
             <span style={{ color: 'var(--color-text-tertiary)' }}>Level Up+</span>
             <button
               onClick={() => onToggleLevelUp(!levelUpEnabled)}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                levelUpEnabled ? 'bg-gradient-to-r from-cyan-500 to-purple-500' : 'bg-gray-300 dark:bg-gray-600'
-              }`}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${levelUpEnabled ? 'bg-gradient-to-r from-cyan-500 to-purple-500' : 'bg-gray-300 dark:bg-gray-600'
+                }`}
               disabled={isLoading}
             >
               <span
-                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                  levelUpEnabled ? 'translate-x-5' : 'translate-x-1'
-                }`}
+                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${levelUpEnabled ? 'translate-x-5' : 'translate-x-1'
+                  }`}
               />
             </button>
           </div>
@@ -95,15 +97,13 @@ const ChatInputArea: FC<ChatInputAreaProps> = ({
             <span style={{ color: 'var(--color-text-tertiary)' }}>Web Search</span>
             <button
               onClick={() => onToggleWebSearch(!useWebSearch)}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                useWebSearch ? 'bg-gradient-to-r from-cyan-500 to-purple-500' : 'bg-gray-300 dark:bg-gray-600'
-              }`}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${useWebSearch ? 'bg-gradient-to-r from-cyan-500 to-purple-500' : 'bg-gray-300 dark:bg-gray-600'
+                }`}
               disabled={isLoading}
             >
               <span
-                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                  useWebSearch ? 'translate-x-5' : 'translate-x-1'
-                }`}
+                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${useWebSearch ? 'translate-x-5' : 'translate-x-1'
+                  }`}
               />
             </button>
           </div>
@@ -147,7 +147,7 @@ const ChatInputArea: FC<ChatInputAreaProps> = ({
           rows={1}
           disabled={disabled || isLoading}
         />
-        
+
         <button
           onClick={onSend}
           disabled={isLoading || input.trim() === '' || disabled}

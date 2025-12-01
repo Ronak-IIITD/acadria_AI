@@ -59,11 +59,11 @@ const parsePdfContent = async (base64: string): Promise<string> => {
         const loadingTask = pdfjsLib.getDocument({ data: bytes });
         const pdf = await loadingTask.promise;
         let fullText = '';
-        
+
         for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
             const textContent = await page.getTextContent();
-            
+
             const pageText = textContent.items
                 // Type guard to ensure item has 'str' property
                 .filter((item: any): item is { str: string } => 'str' in item)
@@ -124,12 +124,12 @@ const parsePptxContent = async (base64: string): Promise<string> => {
 
         const zip = await JSZip.loadAsync(bytes);
         let fullText = '';
-        
+
         // Extract text from slide XML files
-        const slideFiles = Object.keys(zip.files).filter(name => 
+        const slideFiles = Object.keys(zip.files).filter(name =>
             name.startsWith('ppt/slides/slide') && name.endsWith('.xml')
         );
-        
+
         for (const slideFile of slideFiles) {
             const content = await zip.files[slideFile].async('string');
             // Extract text from XML tags <a:t>text</a:t>
@@ -141,7 +141,7 @@ const parsePptxContent = async (base64: string): Promise<string> => {
                 fullText += slideText + '\n\n';
             }
         }
-        
+
         return fullText.trim();
     } catch (error) {
         console.error('Failed to parse PPTX content:', error);
@@ -171,14 +171,14 @@ const chunkText = (text: string, maxCharactersPerChunk: number = 8000): string[]
                 chunks.push(currentChunk.trim());
                 currentChunk = "";
             }
-            
+
             // Now, split the oversized paragraph.
             let remainingParagraph = paragraph;
             while (remainingParagraph.length > maxCharactersPerChunk) {
                 // Find a good split point (sentence or word boundary).
                 let splitPos = remainingParagraph.lastIndexOf('.', maxCharactersPerChunk);
                 if (splitPos === -1) {
-                     splitPos = remainingParagraph.lastIndexOf(' ', maxCharactersPerChunk);
+                    splitPos = remainingParagraph.lastIndexOf(' ', maxCharactersPerChunk);
                 }
                 if (splitPos === -1) { // If no space found, hard cut.
                     splitPos = maxCharactersPerChunk;
@@ -251,11 +251,11 @@ const findRelevantChunks = (chunks: string[], question: string, maxChunks: numbe
 
     // Sort by score (descending) and take top chunks
     scoredChunks.sort((a, b) => b.score - a.score);
-    
+
     // Return the top chunks, but keep them in original document order for context
     const topChunks = scoredChunks.slice(0, maxChunks);
     topChunks.sort((a, b) => a.index - b.index);
-    
+
     return topChunks.map(item => item.chunk);
 };
 
@@ -272,7 +272,7 @@ export const getAiSummary = async (
     content: ChatMessage[] | StudyFile
 ): Promise<{ blocks: ContentBlock[] }> => {
     if (!API_KEY || API_KEY === 'placeholder-key') {
-        return Promise.resolve({ 
+        return Promise.resolve({
             blocks: [{ type: 'text', value: "This is a mock summary as the API key is not configured." }]
         });
     }
@@ -304,7 +304,7 @@ export const getAiSummary = async (
             const file = content as StudyFile;
             summaryTitle = `### Summary of ${file.name}`;
             let textContent: string | null = null;
-            
+
             switch (file.type) {
                 case 'TXT':
                 case 'MD':
@@ -324,14 +324,14 @@ export const getAiSummary = async (
             const MAX_SUMMARY_CHARS = 80000; // ~100k tokens for Gemini 2.5 Flash
             if (textContent.length > MAX_SUMMARY_CHARS) {
                 console.warn(`Document ${file.name} is very large (${textContent.length} chars). Using first ${MAX_SUMMARY_CHARS} characters for summary.`);
-                
+
                 // Take content from beginning, middle, and end for a comprehensive summary
                 const chunkSize = Math.floor(MAX_SUMMARY_CHARS / 3);
                 const beginning = textContent.substring(0, chunkSize);
                 const middleStart = Math.floor((textContent.length - chunkSize) / 2);
                 const middle = textContent.substring(middleStart, middleStart + chunkSize);
                 const end = textContent.substring(textContent.length - chunkSize);
-                
+
                 textContent = `${beginning}\n\n[... content omitted for brevity ...]\n\n${middle}\n\n[... content omitted for brevity ...]\n\n${end}`;
             }
 
@@ -351,12 +351,12 @@ export const getAiSummary = async (
                 Summary of ${file.name}:
             `;
         }
-        
+
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-1.5-flash',
             contents: prompt,
         });
-        
+
         // Return as structured blocks (plain text summary)
         const summaryText = `${summaryTitle}\n\n${response.text}`;
         return { blocks: [{ type: 'text', value: summaryText }] };
@@ -369,15 +369,15 @@ export const getAiSummary = async (
 
 
 export const getAiResponse = async (
-    question: string, 
-    contextFiles: StudyFile[], 
+    question: string,
+    contextFiles: StudyFile[],
     performWebSearch: boolean,
     selectedModel: string = 'gemini',  // ← Model selection (gemini/grok)
     levelUpMode: boolean = false  // ← NEW: Level Up+ mode
 ): Promise<{ blocks: ContentBlock[], suggestions: { displayText: string; query: string }[], sources: string[] }> => {
     // Check if backend API is available
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
-    
+
     try {
         // Try to use backend API first
         const headers = await getAuthHeaders();
@@ -446,7 +446,7 @@ export const getAiResponse = async (
     // This uses the old text-based approach
     if (!API_KEY || API_KEY === 'placeholder-key') {
         console.error('❌ API KEY NOT CONFIGURED! Set VITE_API_KEY in .env file');
-        return Promise.resolve({ 
+        return Promise.resolve({
             blocks: [
                 {
                     type: 'text' as const,
@@ -457,9 +457,9 @@ export const getAiResponse = async (
             sources: [],
         });
     }
-    
+
     console.log('🔑 Using API key for frontend fallback (first 10 chars):', API_KEY.substring(0, 10) + '...');
-    
+
     try {
         const contentChunks: string[] = [];
         const unreadableFiles: string[] = [];
@@ -480,44 +480,44 @@ export const getAiResponse = async (
                 case 'PPTX': textContent = file.content ? await parsePptxContent(file.content) : null; break;
                 default: break;
             }
-            
+
             if (textContent && textContent.trim()) {
                 const allChunks = chunkText(textContent);
                 if (allChunks.length > 0) {
                     const relevantChunks = findRelevantChunks(allChunks, question, MAX_CHUNKS_PER_FILE);
-                    
+
                     let fileContextAdded = false;
                     for (let i = 0; i < relevantChunks.length; i++) {
                         const chunk = relevantChunks[i];
                         const chunkWithHeader = `### Document: ${file.name} (Part ${i + 1} of ${relevantChunks.length}) ###\n\n${chunk}`;
-                        
+
                         if (totalContextSize + chunkWithHeader.length > MAX_CONTEXT_CHARS) {
                             console.warn(`Context limit reached. Skipping remaining chunks from ${file.name}`);
                             break;
                         }
-                        
+
                         contentChunks.push(chunkWithHeader);
                         totalContextSize += chunkWithHeader.length;
                         fileContextAdded = true;
                     }
-                    
+
                     if (!fileContextAdded) {
                         unreadableFiles.push(file.name);
                     }
-                } else { 
-                    unreadableFiles.push(file.name); 
+                } else {
+                    unreadableFiles.push(file.name);
                 }
-            } else { 
-                unreadableFiles.push(file.name); 
+            } else {
+                unreadableFiles.push(file.name);
             }
         }
 
         if (contentChunks.length === 0 && contextFiles.length > 0 && !performWebSearch) {
             const message = `Sorry, I could not read the content from the uploaded documents: ${unreadableFiles.join(', ')}. Please try other files.`;
-            return { 
-                blocks: [{ type: 'text' as const, value: message }], 
-                suggestions: [], 
-                sources: [] 
+            return {
+                blocks: [{ type: 'text' as const, value: message }],
+                suggestions: [],
+                sources: []
             };
         }
 
@@ -624,13 +624,13 @@ Object-oriented programming (OOP) is a programming paradigm based on the concept
 
         const response = await ai.models.generateContent(modelConfig);
         const rawResponseText = response.text || '';
-        
+
         console.log('🤖 RAW AI OUTPUT:', rawResponseText.substring(0, 500));
 
         // Try to parse as JSON
         try {
             let jsonText = rawResponseText.trim();
-            
+
             // Remove markdown code blocks if present
             if (jsonText.startsWith('```json')) {
                 jsonText = jsonText.slice(7);
@@ -640,9 +640,9 @@ Object-oriented programming (OOP) is a programming paradigm based on the concept
             if (jsonText.endsWith('```')) {
                 jsonText = jsonText.slice(0, -3);
             }
-            
+
             const parsed = JSON.parse(jsonText.trim());
-            
+
             if (Array.isArray(parsed)) {
                 console.log('✅ Successfully parsed structured JSON with', parsed.length, 'blocks');
                 return {
@@ -665,23 +665,23 @@ Object-oriented programming (OOP) is a programming paradigm based on the concept
             value: rawResponseText
         };
 
-        return { 
-            blocks: [textBlock], 
-            suggestions: [], 
-            sources: [] 
+        return {
+            blocks: [textBlock],
+            suggestions: [],
+            sources: []
         };
 
     } catch (error) {
         console.error("❌ Error getting AI response:", error);
-        return { 
+        return {
             blocks: [
                 {
                     type: 'text' as const,
                     value: `Sorry, I encountered an error: ${error instanceof Error ? error.message : String(error)}`
                 }
-            ], 
-            suggestions: [], 
-            sources: [] 
+            ],
+            suggestions: [],
+            sources: []
         };
     }
 };
@@ -733,13 +733,13 @@ Return ONLY the JSON array, no additional text or markdown code blocks.`;
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-1.5-flash',
             contents: prompt,
         });
 
         const responseText = response.text || '';
         let jsonText = responseText.trim();
-        
+
         // Remove markdown code blocks if present
         if (jsonText.startsWith('```json')) {
             jsonText = jsonText.slice(7);
@@ -749,13 +749,13 @@ Return ONLY the JSON array, no additional text or markdown code blocks.`;
         if (jsonText.endsWith('```')) {
             jsonText = jsonText.slice(0, -3);
         }
-        
+
         const flashcardData = JSON.parse(jsonText.trim());
-        
+
         if (!Array.isArray(flashcardData)) {
             throw new Error('Invalid response format from AI');
         }
-        
+
         return flashcardData.map((data: any) => ({
             front: data.front || '',
             back: data.back || '',
