@@ -101,7 +101,24 @@ class RAGService:
                 try:
                     print(f"🤖 Attempting to generate response with {self.model_name} (attempt {attempt + 1}/{MAX_RETRIES})")
                     # Generate content (JSON will be enforced through prompt)
-                    response = self.model.generate_content(prompt)
+                    response = self.model.generate_content(
+    prompt,
+    generation_config=genai.types.GenerationConfig(
+        response_mime_type="application/json",
+        response_schema={
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "type": {"type": "string"},
+                    "value": {"type": "string"},
+                    "language": {"type": "string"}
+                },
+                "required": ["type", "value"]
+            }
+        }
+    )
+)
                     raw_answer = response.text
 
                     # If we had switched models and it worked, log success
@@ -688,6 +705,27 @@ REMEMBER: Output ONLY the JSON array. No additional text before or after."""
     def clear_documents(self):
         """Clear all stored documents"""
         self.documents = []
+    
+    def remove_document_by_id(self, document_id: str) -> int:
+        """
+        Remove all chunks associated with a specific document ID.
+        
+        Args:
+            document_id: The document ID to remove
+            
+        Returns:
+            Number of chunks removed
+        """
+        initial_count = len(self.documents)
+        self.documents = [doc for doc in self.documents if doc.get("document_id") != document_id]
+        removed_count = initial_count - len(self.documents)
+        
+        if removed_count > 0:
+            print(f"🗑️ Removed {removed_count} chunks for document {document_id}")
+        else:
+            print(f"⚠️ No chunks found for document {document_id}")
+        
+        return removed_count
     
     def _detect_language_from_context(self, context: str) -> str:
         """

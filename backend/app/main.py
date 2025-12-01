@@ -14,6 +14,7 @@ print(f"✅ GROK_API_KEY present: {bool(os.getenv('GROK_API_KEY'))}")
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import chat, upload, models
+from app.middleware.rate_limit import RateLimitMiddleware
 import uvicorn
 
 app = FastAPI(
@@ -21,6 +22,9 @@ app = FastAPI(
     description="Backend API for StudySync AI with RAG capabilities",
     version="1.0.0"
 )
+
+# Add rate limiting middleware (before CORS)
+app.add_middleware(RateLimitMiddleware)
 
 # CORS configuration
 app.add_middleware(

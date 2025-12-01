@@ -321,11 +321,15 @@ class DocumentService:
             return text
     
     async def delete_document(self, document_id: str):
-        """Delete document from storage"""
+        """Delete document from storage and RAG store"""
         if document_id in self.documents:
+            # Remove from metadata
             del self.documents[document_id]
-            # Note: Would need to rebuild in-memory store to fully remove
-            # For now, just remove from metadata
+            # Remove chunks from RAG service
+            self.rag_service.remove_document_by_id(document_id)
+            print(f"✅ Deleted document {document_id} from metadata and RAG store")
+        else:
+            print(f"⚠️ Document {document_id} not found in metadata")
     
     async def list_documents(self) -> List[Dict[str, Any]]:
         """List all uploaded documents"""
