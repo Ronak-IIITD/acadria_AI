@@ -34,14 +34,17 @@ class GrokService:
             print("⚠️  WARNING: GROK_API_KEY not set. Grok calls will fail.")
             self.client = None
 
-        # Chat history
-        self.chat_history: List[Dict[str, str]] = []
+        # Chat history (partitioned by user_id)
+        # Format: {user_id: [{"role": "user", "content": "msg"}, ...]}
+        self.chat_history: Dict[str, List[Dict[str, str]]] = {}
     
     async def generate_response(
         self,
         query: str,
         context: str,
+        context: str,
         sources: List[Dict[str, Any]],
+        user_id: str,
         use_web_search: bool = False,
         level_up_mode: bool = False
     ) -> ChatResponse:
@@ -67,7 +70,7 @@ class GrokService:
         
         try:
             # Build prompt with structured JSON instruction
-            prompt = self._build_prompt(query, context, use_web_search, level_up_mode)
+            prompt = self._build_prompt(query, context, user_id, use_web_search, level_up_mode)
             
             # Adjust temperature and max_tokens for Level Up+ mode
             temperature = 0.8 if level_up_mode else 0.7
@@ -100,8 +103,12 @@ class GrokService:
             
             # Add to chat history
             combined_text = " ".join([b.value for b in blocks if b.type == "text"])
-            self.chat_history.append({"role": "user", "content": query})
-            self.chat_history.append({"role": "assistant", "content": combined_text})
+            
+            if user_id not in self.chat_history:
+                self.chat_history[user_id] = []
+                
+            self.chat_history[user_id].append({"role": "user", "content": query})
+            self.chat_history[user_id].append({"role": "assistant", "content": combined_text})
             
             # Generate suggestions
             suggestions = self._generate_suggestions(query, combined_text)
@@ -124,7 +131,7 @@ class GrokService:
                 sources=[]
             )
     
-    def _build_prompt(self, query: str, context: str, use_web_search: bool, level_up_mode: bool = False) -> str:
+    def _build_prompt(self, query: str, context: str, user_id: str, use_web_search: bool, level_up_mode: bool = False) -> str:
         """Build prompt with context and instructions"""
 
         # Level Up+ mode instruction
@@ -168,7 +175,7 @@ Return a JSON array of content blocks:
 {context if context else "⚠️ NO DOCUMENTS UPLOADED - User needs to upload study materials first."}
 
 **Chat History:**
-{self._format_chat_history()}
+{self._format_chat_history(user_id)}
 
 **Student's Question:**
 {query}
@@ -213,13 +220,14 @@ Output ONLY the JSON array. No additional text."""
             # Fallback: return as text block
             return [ContentBlock(type="text", value=raw_answer)]
     
-    def _format_chat_history(self) -> str:
+    def _format_chat_history(self, user_id: str) -> str:
         """Format chat history for prompt"""
-        if not self.chat_history:
+        user_history = self.chat_history.get(user_id, [])
+        if not user_history:
             return "No previous conversation."
         
         formatted = []
-        for msg in self.chat_history[-6:]:  # Last 3 exchanges
+        for msg in user_history[-6:]:  # Last 3 exchanges
             role = "Student" if msg["role"] == "user" else "AI"
             formatted.append(f"{role}: {msg['content']}")
         
@@ -243,9 +251,15 @@ Output ONLY the JSON array. No additional text."""
         
         return suggestions[:3]
     
-    def clear_history(self):
-        """Clear chat history"""
-        self.chat_history = []
+    def clear_history(self, user_id: str = None):
+        """Clear chat history for a user"""
+        if user_id:
+            if user_id in self.chat_history:
+                self.chat_history[user_id] = []
+                print(f"🧹 Cleared Grok chat history for user {user_id}")
+        else:
+            self.chat_history = {}
+            print("🧹 Cleared ALL Grok chat history")
 
 
 # Global instance for reuse

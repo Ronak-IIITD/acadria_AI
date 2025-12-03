@@ -45,6 +45,9 @@ const ChatInputArea: FC<ChatInputAreaProps> = ({
     { id: AiModel.GEMINI_2_5_PRO, name: 'Gemini 2.5 Pro' },
     { id: AiModel.GEMINI_3_PRO, name: 'Gemini 3 Pro (Preview)' },
     { id: AiModel.GROK, name: 'Grok Beta' },
+    { id: AiModel.LLAMA3_70B, name: 'Llama 3 70B (Groq)' },
+    { id: AiModel.MIXTRAL_8X7B, name: 'Mixtral 8x7B (Groq)' },
+    { id: AiModel.GEMMA_7B, name: 'Gemma 7B (Groq)' },
     { id: AiModel.GPT4ALL, name: 'GPT4All (Local)' },
     { id: AiModel.LLAMA2, name: 'LLaMA 2 (Local)' }
   ];

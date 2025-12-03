@@ -30,11 +30,13 @@ class RAGService:
         # Initialize embedding service
         self.embedding_service = get_embedding_service()
         
-        # In-memory storage for document chunks (now includes embeddings)
-        self.documents: List[Dict[str, Any]] = []
+        # In-memory storage for document chunks (partitioned by user_id)
+        # Format: {user_id: [chunk1, chunk2, ...]}
+        self.documents: Dict[str, List[Dict[str, Any]]] = {}
         
-        # Chat history
-        self.chat_history: List[Dict[str, str]] = []
+        # Chat history (partitioned by user_id)
+        # Format: {user_id: [{"role": "user", "content": "msg"}, ...]}
+        self.chat_history: Dict[str, List[Dict[str, str]]] = {}
     
     def set_model(self, model_name: str):
         """
@@ -61,7 +63,7 @@ class RAGService:
         except Exception as e:
             print(f"⚠️  Error switching model: {e}, keeping current model")
     
-    async def generate_response(self, query: str, use_web_search: bool = False, level_up_mode: bool = False) -> ChatResponse:
+    async def generate_response(self, query: str, user_id: str, use_web_search: bool = False, level_up_mode: bool = False) -> ChatResponse:
         """
         Generate AI response using retrieved context.
         Returns structured JSON blocks with validated LaTeX.
@@ -75,24 +77,25 @@ class RAGService:
             # Get relevant context using semantic search
             # In Level Up+ mode, retrieve MORE context chunks
             top_k = 5 if level_up_mode else 3
-            context, sources = self._retrieve_context(query, top_k=top_k)
+            context, sources = self._retrieve_context(query, user_id, top_k=top_k)
 
             # Log context retrieval status
             if context:
                 print(f"📖 Retrieved context: {len(context)} chars from {len(sources)} sources")
                 print(f"📄 Sources: {[s['title'] for s in sources]}")
             else:
-                print(f"⚠️ No context retrieved - Total documents in store: {len(self.documents)}")
-                if len(self.documents) > 0:
-                    print(f"   Available documents: {[doc.get('filename', 'unknown') for doc in self.documents[:5]]}")
+                user_docs = self.documents.get(user_id, [])
+                print(f"⚠️ No context retrieved - Total documents for user {user_id}: {len(user_docs)}")
+                if len(user_docs) > 0:
+                    print(f"   Available documents: {[doc.get('filename', 'unknown') for doc in user_docs[:5]]}")
                     print("   ⚠️ Context retrieval failed - trying to return first few chunks as fallback")
                     # Fallback: return first few chunks if retrieval failed but documents exist
-                    fallback_docs = self.documents[:min(3, len(self.documents))]
+                    fallback_docs = user_docs[:min(3, len(user_docs))]
                     context, sources = self._build_context_from_docs(fallback_docs)
                     print(f"   ✅ Using fallback context: {len(context)} chars from {len(sources)} sources")
 
             # Build prompt with structured JSON instruction
-            prompt = self._build_prompt(query, context, use_web_search, level_up_mode)
+            prompt = self._build_prompt(query, context, user_id, use_web_search, level_up_mode)
             
             # Generate response with retry logic for overload errors
             retry_delay = INITIAL_RETRY_DELAY
@@ -213,8 +216,12 @@ class RAGService:
             
             # Add to chat history (for now, join blocks for history)
             combined_text = " ".join([b.value for b in content_blocks if b.type == "text"])
-            self.chat_history.append({"role": "user", "content": query})
-            self.chat_history.append({"role": "assistant", "content": combined_text})
+            
+            if user_id not in self.chat_history:
+                self.chat_history[user_id] = []
+                
+            self.chat_history[user_id].append({"role": "user", "content": query})
+            self.chat_history[user_id].append({"role": "assistant", "content": combined_text})
             
             # Generate follow-up suggestions
             suggestions = self._generate_suggestions(query, combined_text)
@@ -262,7 +269,7 @@ class RAGService:
                 sources=[]
             )
     
-    def _retrieve_context(self, query: str, top_k: int = 3) -> tuple[str, List[Dict[str, Any]]]:
+    def _retrieve_context(self, query: str, user_id: str, top_k: int = 3) -> tuple[str, List[Dict[str, Any]]]:
         """
         Semantic search using embeddings and cosine similarity.
         Returns relevant document chunks and their sources.
@@ -274,8 +281,9 @@ class RAGService:
         BEFORE: Keyword matching (30% accuracy)
         NOW: Semantic search with embeddings (85% accuracy)
         """
-        if not self.documents:
-            print("⚠️  No documents in store")
+        user_docs = self.documents.get(user_id, [])
+        if not user_docs:
+            print(f"⚠️  No documents in store for user {user_id}")
             return "", []
 
         try:
@@ -316,7 +324,7 @@ class RAGService:
                 docs_with_embeddings = 0
                 docs_without_embeddings = 0
                 
-                for doc in self.documents:
+                for doc in user_docs:
                     doc_embedding = doc.get("embedding")
                     if doc_embedding is None:
                         docs_without_embeddings += 1
@@ -366,16 +374,17 @@ class RAGService:
                     print("⚠️ Semantic search returned no matches - switching to keyword fallback")
 
             # Fallback to lightweight keyword search
-            return self._keyword_search(query_lower, is_highlight_query, requested_color, top_k)
+            return self._keyword_search(query_lower, user_id, is_highlight_query, requested_color, top_k)
 
         except Exception as e:
             print(f"❌ Error in semantic search: {str(e)}")
             # Fallback to keyword search before giving up
-            return self._keyword_search(query.lower(), False, None, top_k)
+            return self._keyword_search(query.lower(), user_id, False, None, top_k)
 
     def _keyword_search(
         self,
         query_lower: str,
+        user_id: str,
         is_highlight_query: bool,
         requested_color: Optional[str],
         top_k: int
@@ -397,14 +406,15 @@ class RAGService:
         ]
 
         # If no keywords extracted, use a more lenient approach
+        user_docs = self.documents.get(user_id, [])
         if not keywords:
             print("   ℹ️ No keywords extracted - using first documents as fallback")
             # Return first few documents if no keywords
-            fallback_docs = self.documents[:min(top_k, len(self.documents))]
+            fallback_docs = user_docs[:min(top_k, len(user_docs))]
             return self._build_context_from_docs(fallback_docs)
 
         scored_docs = []
-        for doc in self.documents:
+        for doc in user_docs:
             content_type = doc.get("content_type", "document")
 
             if is_highlight_query:
@@ -438,8 +448,8 @@ class RAGService:
         if not scored_docs:
             print("⚠️ Keyword fallback found no matches - trying to return first documents anyway")
             # Last resort: return first few documents even if no keyword matches
-            if self.documents:
-                fallback_docs = self.documents[:min(top_k, len(self.documents))]
+            if user_docs:
+                fallback_docs = user_docs[:min(top_k, len(user_docs))]
                 print(f"   ✅ Returning {len(fallback_docs)} documents as last resort fallback")
                 return self._build_context_from_docs(fallback_docs)
             return "", []
@@ -481,7 +491,7 @@ class RAGService:
 
         return context, sources
     
-    def _build_prompt(self, query: str, context: str, use_web_search: bool, level_up_mode: bool = False) -> str:
+    def _build_prompt(self, query: str, context: str, user_id: str, use_web_search: bool, level_up_mode: bool = False) -> str:
         """Build prompt with context and instructions - STRUCTURED JSON OUTPUT ONLY"""
 
         # Detect programming language from context
@@ -576,7 +586,7 @@ Return a JSON array of content blocks with this EXACT structure:
 {'' if context else '**⚠️ IMPORTANT:** Since no document context was found, you MUST tell the user: "I don\'t have any documents to reference. Please upload your study materials (PDFs, notes, etc.) so I can help you with specific content from them."'}
 
 **Chat History:**
-{self._format_chat_history()}
+{self._format_chat_history(user_id)}
 
 **Student's Question:**
 {query}
@@ -621,13 +631,14 @@ REMEMBER: Output ONLY the JSON array. No additional text before or after."""
         
         return prompt
     
-    def _format_chat_history(self) -> str:
+    def _format_chat_history(self, user_id: str) -> str:
         """Format chat history for prompt"""
-        if not self.chat_history:
+        user_history = self.chat_history.get(user_id, [])
+        if not user_history:
             return "No previous conversation."
         
         formatted = []
-        for msg in self.chat_history[-6:]:  # Last 3 exchanges
+        for msg in user_history[-6:]:  # Last 3 exchanges
             role = "Student" if msg["role"] == "user" else "AI"
             formatted.append(f"{role}: {msg['content']}")
         
@@ -651,11 +662,17 @@ REMEMBER: Output ONLY the JSON array. No additional text before or after."""
 
         return suggestions[:3]
     
-    def clear_history(self):
-        """Clear chat history"""
-        self.chat_history = []
+    def clear_history(self, user_id: str = None):
+        """Clear chat history for a user"""
+        if user_id:
+            if user_id in self.chat_history:
+                self.chat_history[user_id] = []
+                print(f"🧹 Cleared chat history for user {user_id}")
+        else:
+            self.chat_history = {}
+            print("🧹 Cleared ALL chat history")
     
-    def add_documents_to_store(self, chunks: List[Dict[str, Any]]):
+    def add_documents_to_store(self, chunks: List[Dict[str, Any]], user_id: str):
         """
         Add document chunks to in-memory store.
         Each chunk should have: content, filename, chunk_index, etc.
@@ -664,8 +681,11 @@ REMEMBER: Output ONLY the JSON array. No additional text before or after."""
             print("⚠️ Warning: Attempted to add empty chunks list to RAG store")
             return
             
-        self.documents.extend(chunks)
-        print(f"📚 Added {len(chunks)} chunks to RAG store. Total documents now: {len(self.documents)}")
+        if user_id not in self.documents:
+            self.documents[user_id] = []
+            
+        self.documents[user_id].extend(chunks)
+        print(f"📚 Added {len(chunks)} chunks to RAG store for user {user_id}. Total documents for user: {len(self.documents[user_id])}")
         
         # Log sample of what was added
         if chunks:
@@ -674,18 +694,27 @@ REMEMBER: Output ONLY the JSON array. No additional text before or after."""
                   f"content_length={len(sample_chunk.get('content', ''))}, "
                   f"has_embedding={sample_chunk.get('embedding') is not None}")
     
-    def get_document_count(self) -> int:
-        """Get total number of document chunks in store"""
-        return len(self.documents)
+    def get_document_count(self, user_id: str = None) -> int:
+        """Get total number of document chunks in store for a user"""
+        if user_id:
+            return len(self.documents.get(user_id, []))
+        # Return total across all users if no user_id specified (admin/debug)
+        return sum(len(docs) for docs in self.documents.values())
     
-    def get_document_info(self) -> Dict[str, Any]:
+    def get_document_info(self, user_id: str = None) -> Dict[str, Any]:
         """Get information about stored documents for debugging"""
-        if not self.documents:
+        if user_id:
+            docs_to_check = self.documents.get(user_id, [])
+        else:
+            # Flatten all docs for global debug
+            docs_to_check = [doc for user_docs in self.documents.values() for doc in user_docs]
+
+        if not docs_to_check:
             return {"total": 0, "files": []}
         
         # Group by filename
         files = {}
-        for doc in self.documents:
+        for doc in docs_to_check:
             filename = doc.get("filename", "unknown")
             if filename not in files:
                 files[filename] = {
@@ -701,15 +730,21 @@ REMEMBER: Output ONLY the JSON array. No additional text before or after."""
             files[filename]["content_types"][content_type] = files[filename]["content_types"].get(content_type, 0) + 1
         
         return {
-            "total": len(self.documents),
+            "total": len(docs_to_check),
             "files": list(files.values())
         }
     
-    def clear_documents(self):
-        """Clear all stored documents"""
-        self.documents = []
+    def clear_documents(self, user_id: str = None):
+        """Clear all stored documents for a user"""
+        if user_id:
+            if user_id in self.documents:
+                self.documents[user_id] = []
+                print(f"🧹 Cleared documents for user {user_id}")
+        else:
+            self.documents = {}
+            print("🧹 Cleared ALL documents")
     
-    def remove_document_by_id(self, document_id: str) -> int:
+    def remove_document_by_id(self, document_id: str, user_id: str) -> int:
         """
         Remove all chunks associated with a specific document ID.
         
@@ -719,9 +754,14 @@ REMEMBER: Output ONLY the JSON array. No additional text before or after."""
         Returns:
             Number of chunks removed
         """
-        initial_count = len(self.documents)
-        self.documents = [doc for doc in self.documents if doc.get("document_id") != document_id]
-        removed_count = initial_count - len(self.documents)
+        if user_id not in self.documents:
+            print(f"⚠️ User {user_id} not found in store")
+            return 0
+
+        user_docs = self.documents[user_id]
+        initial_count = len(user_docs)
+        self.documents[user_id] = [doc for doc in user_docs if doc.get("document_id") != document_id]
+        removed_count = initial_count - len(self.documents[user_id])
         
         if removed_count > 0:
             print(f"🗑️ Removed {removed_count} chunks for document {document_id}")

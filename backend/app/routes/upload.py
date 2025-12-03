@@ -79,7 +79,8 @@ async def upload_documents(files: List[UploadFile] = File(...), current_user: di
             doc_id = await document_service.process_document(
                 filename=file.filename,
                 content=content,
-                content_type=file.content_type
+                content_type=file.content_type,
+                user_id=current_user['uid']
             )
             
             results.append({
@@ -98,7 +99,7 @@ async def delete_document(document_id: str, current_user: dict = Depends(get_cur
     """Delete a specific document from the vector store"""
     try:
         print(f"🗑️ User {current_user['uid']} deleting document {document_id}")
-        await document_service.delete_document(document_id)
+        await document_service.delete_document(document_id, user_id=current_user['uid'])
         return {"message": f"Document {document_id} deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -108,7 +109,7 @@ async def list_documents(current_user: dict = Depends(get_current_user)):
     """List all uploaded documents"""
     try:
         print(f"📋 User {current_user['uid']} listing documents")
-        documents = await document_service.list_documents()
+        documents = await document_service.list_documents(user_id=current_user['uid'])
         return {"documents": documents, "total": len(documents)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -44,6 +44,9 @@ export enum AiModel {
   GEMINI_2_5_PRO = 'gemini-2.5-pro',
   GEMINI_3_PRO = 'gemini-3-pro',
   GROK = 'grok',
+  LLAMA3_70B = 'llama3-70b-8192',
+  MIXTRAL_8X7B = 'mixtral-8x7b-32768',
+  GEMMA_7B = 'gemma-7b-it',
   GPT4ALL = 'gpt4all',
   LLAMA2 = 'llama2',
 }

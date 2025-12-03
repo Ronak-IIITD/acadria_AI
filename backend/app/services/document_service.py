@@ -30,7 +30,7 @@ class DocumentService:
         self.storage_path = "data/documents"
         os.makedirs(self.storage_path, exist_ok=True)
     
-    async def process_document(self, filename: str, content: bytes, content_type: str) -> str:
+    async def process_document(self, filename: str, content: bytes, content_type: str, user_id: str) -> str:
         """
         Process uploaded document and add to RAG service.
         For PDFs, also extracts existing highlights with color information.
@@ -68,7 +68,10 @@ class DocumentService:
                     "filename": filename,
                     "chunk_index": i,
                     "total_chunks": len(chunks),
-                    "content_type": "document"  # Regular document content
+                    "chunk_index": i,
+                    "total_chunks": len(chunks),
+                    "content_type": "document",  # Regular document content
+                    "user_id": user_id
                 }
                 for i, (chunk, embedding) in enumerate(zip(chunks, embeddings))
             ]
@@ -110,16 +113,19 @@ class DocumentService:
                             "embedding": highlight_embedding,
                             "document_id": doc_id,
                             "filename": filename,
+                            "document_id": doc_id,
+                            "filename": filename,
                             "content_type": "highlight",
                             "highlight_color": color,
-                            "highlight_count": len(color_highlights)
+                            "highlight_count": len(color_highlights),
+                            "user_id": user_id
                         })
 
                     print(f"✅ Processed highlights: {', '.join([f'{count} {color}' for color, highlights in highlights_by_color.items() for count in [len(highlights)]])}")
 
             # Add both regular chunks and highlight chunks to RAG service
             all_chunks = doc_chunks + highlight_chunks
-            self.rag_service.add_documents_to_store(all_chunks)
+            self.rag_service.add_documents_to_store(all_chunks, user_id)
 
             # Store document metadata
             self.documents[doc_id] = {
@@ -128,7 +134,10 @@ class DocumentService:
                 "content_type": content_type,
                 "chunks": len(chunks),
                 "highlights": len(highlight_chunks),
-                "size": len(content)
+                "chunks": len(chunks),
+                "highlights": len(highlight_chunks),
+                "size": len(content),
+                "user_id": user_id
             }
 
             # Clean up temp file
@@ -320,17 +329,23 @@ class DocumentService:
             text = re.sub(r'[{}]', '', text)
             return text
     
-    async def delete_document(self, document_id: str):
+    async def delete_document(self, document_id: str, user_id: str):
         """Delete document from storage and RAG store"""
         if document_id in self.documents:
+            # Check ownership
+            doc = self.documents[document_id]
+            if doc.get("user_id") != user_id:
+                print(f"⚠️ User {user_id} attempted to delete document {document_id} owned by {doc.get('user_id')}")
+                raise ValueError("Document not found or access denied")
+
             # Remove from metadata
             del self.documents[document_id]
             # Remove chunks from RAG service
-            self.rag_service.remove_document_by_id(document_id)
+            self.rag_service.remove_document_by_id(document_id, user_id)
             print(f"✅ Deleted document {document_id} from metadata and RAG store")
         else:
             print(f"⚠️ Document {document_id} not found in metadata")
     
-    async def list_documents(self) -> List[Dict[str, Any]]:
-        """List all uploaded documents"""
-        return list(self.documents.values())
+    async def list_documents(self, user_id: str) -> List[Dict[str, Any]]:
+        """List all uploaded documents for a specific user"""
+        return [doc for doc in self.documents.values() if doc.get("user_id") == user_id]
