@@ -1,5 +1,6 @@
 .env
 .env.example
+.env.local
 # Logs
 logs
 *.log
@@ -31,6 +32,7 @@ dist-ssr
 .env.*.local
 backend/.env
 backend/.env.local
+backend/.env.example
 
 # Firebase service account (NEVER commit this!)
 backend/service-account.json
