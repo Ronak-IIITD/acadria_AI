@@ -31,3 +31,17 @@ dist-ssr
 .env.*.local
 backend/.env
 backend/.env.local
+
+# Firebase service account (NEVER commit this!)
+backend/service-account.json
+*.json.bak
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/

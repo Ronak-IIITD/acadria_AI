@@ -38,11 +38,18 @@ class DocumentService:
         Returns document ID.
         """
         try:
-            filename = file.filename
+            original_filename = file.filename
             content_type = file.content_type
             
             # Generate unique document ID
             doc_id = str(uuid.uuid4())
+            
+            # SECURITY: Sanitize filename to prevent path traversal attacks
+            # Remove any directory components and dangerous characters
+            safe_filename = os.path.basename(original_filename)
+            safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', safe_filename)
+            # Use doc_id prefix to ensure uniqueness
+            filename = f"{doc_id}_{safe_filename}"
 
             # Save file temporarily for processing (Stream to disk)
             temp_path = os.path.join(self.storage_path, filename)

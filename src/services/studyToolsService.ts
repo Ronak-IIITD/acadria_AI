@@ -103,7 +103,7 @@ Return ONLY the JSON array, no additional text.`;
       documentId,
       questions,
       totalQuestions: questions.length,
-      userId: 'current-user', // TODO: Get from auth context
+      userId: 'anonymous', // User ID managed via Firebase Auth token in API calls
     };
     
     return quiz;
