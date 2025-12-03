@@ -60,26 +60,9 @@ async def upload_documents(files: List[UploadFile] = File(...), current_user: di
             # Validate file type
             validate_file(file)
 
-            # Read file content
-            content = await file.read()
-
-            # Validate file size
-            file_size_mb = len(content) / (1024 * 1024)
-            if len(content) > MAX_FILE_SIZE_BYTES:
-                results.append({
-                    "filename": file.filename,
-                    "status": "error",
-                    "error": f"File too large: {file_size_mb:.2f}MB. Maximum: {MAX_FILE_SIZE_MB}MB"
-                })
-                continue
-
-            print(f"  📄 {file.filename} ({file_size_mb:.2f}MB)")
-            
-            # Process document
+            # Process document (Streaming)
             doc_id = await document_service.process_document(
-                filename=file.filename,
-                content=content,
-                content_type=file.content_type,
+                file=file,
                 user_id=current_user['uid']
             )
             

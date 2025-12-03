@@ -36,7 +36,13 @@ class RAGService:
         
         # Chat history (partitioned by user_id)
         # Format: {user_id: [{"role": "user", "content": "msg"}, ...]}
+        # Chat history (partitioned by user_id)
+        # Format: {user_id: [{"role": "user", "content": "msg"}, ...]}
         self.chat_history: Dict[str, List[Dict[str, str]]] = {}
+        
+        # Persistence file path
+        self.storage_file = "data/rag_storage.json"
+        self._load_state()
     
     def set_model(self, model_name: str):
         """
@@ -222,6 +228,9 @@ class RAGService:
                 
             self.chat_history[user_id].append({"role": "user", "content": query})
             self.chat_history[user_id].append({"role": "assistant", "content": combined_text})
+            
+            # Save state after chat update
+            self._save_state()
             
             # Generate follow-up suggestions
             suggestions = self._generate_suggestions(query, combined_text)
@@ -671,6 +680,8 @@ REMEMBER: Output ONLY the JSON array. No additional text before or after."""
         else:
             self.chat_history = {}
             print("🧹 Cleared ALL chat history")
+            
+        self._save_state()
     
     def add_documents_to_store(self, chunks: List[Dict[str, Any]], user_id: str):
         """
@@ -686,6 +697,8 @@ REMEMBER: Output ONLY the JSON array. No additional text before or after."""
             
         self.documents[user_id].extend(chunks)
         print(f"📚 Added {len(chunks)} chunks to RAG store for user {user_id}. Total documents for user: {len(self.documents[user_id])}")
+        
+        self._save_state()
         
         # Log sample of what was added
         if chunks:
@@ -733,6 +746,41 @@ REMEMBER: Output ONLY the JSON array. No additional text before or after."""
             "total": len(docs_to_check),
             "files": list(files.values())
         }
+    
+    def _save_state(self):
+        """Save documents and chat history to disk"""
+        try:
+            os.makedirs(os.path.dirname(self.storage_file), exist_ok=True)
+            state = {
+                "documents": self.documents,
+                "chat_history": self.chat_history
+            }
+            # Use a temporary file to avoid corruption during write
+            temp_file = f"{self.storage_file}.tmp"
+            with open(temp_file, 'w') as f:
+                json.dump(state, f)
+            os.replace(temp_file, self.storage_file)
+            print("💾 RAG state saved to disk")
+        except Exception as e:
+            print(f"❌ Failed to save RAG state: {e}")
+
+    def _load_state(self):
+        """Load documents and chat history from disk"""
+        if not os.path.exists(self.storage_file):
+            return
+            
+        try:
+            with open(self.storage_file, 'r') as f:
+                state = json.load(f)
+                
+            self.documents = state.get("documents", {})
+            self.chat_history = state.get("chat_history", {})
+            
+            # Count total docs
+            total_docs = sum(len(docs) for docs in self.documents.values())
+            print(f"📂 Loaded RAG state: {total_docs} chunks, {len(self.chat_history)} chat sessions")
+        except Exception as e:
+            print(f"❌ Failed to load RAG state: {e}")
     
     def clear_documents(self, user_id: str = None):
         """Clear all stored documents for a user"""

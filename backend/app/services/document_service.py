@@ -1,6 +1,7 @@
 import uuid
 import os
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Tuple, Optional, BinaryIO
+from fastapi import UploadFile
 from PyPDF2 import PdfReader
 from docx import Document
 import markdown
@@ -30,23 +31,35 @@ class DocumentService:
         self.storage_path = "data/documents"
         os.makedirs(self.storage_path, exist_ok=True)
     
-    async def process_document(self, filename: str, content: bytes, content_type: str, user_id: str) -> str:
+    async def process_document(self, file: UploadFile, user_id: str) -> str:
         """
         Process uploaded document and add to RAG service.
-        For PDFs, also extracts existing highlights with color information.
+        Stream file to disk to avoid memory issues.
         Returns document ID.
         """
         try:
+            filename = file.filename
+            content_type = file.content_type
+            
             # Generate unique document ID
             doc_id = str(uuid.uuid4())
 
-            # Save file temporarily for processing
+            # Save file temporarily for processing (Stream to disk)
             temp_path = os.path.join(self.storage_path, filename)
-            with open(temp_path, "wb") as f:
-                f.write(content)
+            
+            # Get file size while writing
+            file_size = 0
+            with open(temp_path, "wb") as buffer:
+                while chunk := await file.read(1024 * 1024):  # Read in 1MB chunks
+                    buffer.write(chunk)
+                    file_size += len(chunk)
+            
+            # Reset file cursor for safety (though we use temp_path now)
+            await file.seek(0)
 
             # Extract text based on file type
-            text = await self._extract_text(content, filename, content_type)
+            # We now read from the temp_path, not memory
+            text = self._extract_text_from_file(temp_path, filename)
 
             if not text:
                 raise ValueError(f"Could not extract text from {filename}")
@@ -136,7 +149,9 @@ class DocumentService:
                 "highlights": len(highlight_chunks),
                 "chunks": len(chunks),
                 "highlights": len(highlight_chunks),
-                "size": len(content),
+                "chunks": len(chunks),
+                "highlights": len(highlight_chunks),
+                "size": file_size,
                 "user_id": user_id
             }
 
@@ -175,32 +190,24 @@ class DocumentService:
         
         return chunks if chunks else [text]
     
-    async def _extract_text(self, content: bytes, filename: str, content_type: str) -> str:
-        """Extract text from different file formats"""
+    def _extract_text_from_file(self, filepath: str, filename: str) -> str:
+        """Extract text from different file formats using the saved file"""
         try:
-            # Save file temporarily
-            temp_path = os.path.join(self.storage_path, filename)
-            with open(temp_path, "wb") as f:
-                f.write(content)
-            
             # Extract based on file type
             if filename.endswith('.pdf'):
-                return self._extract_from_pdf(temp_path)
+                return self._extract_from_pdf(filepath)
             elif filename.endswith('.docx'):
-                return self._extract_from_docx(temp_path)
+                return self._extract_from_docx(filepath)
             elif filename.endswith('.txt'):
-                return self._extract_from_txt(temp_path)
+                return self._extract_from_txt(filepath)
             elif filename.endswith('.md'):
-                return self._extract_from_markdown(temp_path)
+                return self._extract_from_markdown(filepath)
             elif filename.endswith('.rtf'):
-                return self._extract_from_rtf(temp_path)
+                return self._extract_from_rtf(filepath)
             else:
                 raise ValueError(f"Unsupported file type: {filename}")
-        
-        finally:
-            # Clean up temp file
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
+        except Exception as e:
+            raise ValueError(f"Failed to extract text: {str(e)}")
     
     def _extract_from_pdf(self, filepath: str) -> str:
         """Extract text from PDF"""
