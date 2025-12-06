@@ -39,6 +39,7 @@ async def chat(message: ChatMessage, current_user: dict = Depends(get_current_us
                 query=message.text,
                 context=context,
                 sources=sources,
+                user_id=current_user['uid'],
                 use_web_search=message.use_web_search,
                 level_up_mode=level_up_mode
             )

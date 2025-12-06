@@ -42,7 +42,6 @@ class GrokService:
         self,
         query: str,
         context: str,
-        context: str,
         sources: List[Dict[str, Any]],
         user_id: str,
         use_web_search: bool = False,

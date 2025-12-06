@@ -2,7 +2,7 @@ import { useState, useEffect, FC } from 'react';
 import AIBookIcon from './icons/AIBookIcon';
 import type { User } from '../types';
 
-interface HeaderProps {
+interface HeaderProps { 
   user: User | null;
   onLogout: () => void;
   onLoginClick: () => void;

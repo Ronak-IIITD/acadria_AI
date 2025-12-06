@@ -33,12 +33,25 @@ def initialize_firebase():
         # Check if Firebase credentials path is provided
         creds_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
         
+        # If path is relative, resolve it relative to the backend directory
+        if creds_path:
+            from pathlib import Path
+            backend_dir = Path(__file__).parent.parent.parent  # backend/app/middleware -> backend
+            
+            if not os.path.isabs(creds_path):
+                creds_path = str(backend_dir / creds_path)
+            
+            logger.info(f"🔍 Looking for Firebase credentials at: {creds_path}")
+        
         if creds_path and os.path.exists(creds_path):
             # Initialize with service account
             cred = credentials.Certificate(creds_path)
             firebase_admin.initialize_app(cred)
             logger.info("✅ Firebase Admin initialized with service account")
         else:
+            # Log warning if file not found
+            if creds_path:
+                logger.warning(f"⚠️ Firebase credentials file not found at: {creds_path}")
             # Initialize with default credentials (works in Google Cloud environments)
             firebase_admin.initialize_app()
             logger.info("✅ Firebase Admin initialized with default credentials")
