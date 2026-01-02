@@ -6,11 +6,13 @@ import AIBookIcon from './icons/AIBookIcon';
 interface ChatHeaderProps {
   onMenuClick: () => void;
   fileCount: number;
+  onProgressClick?: () => void;
 }
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({ 
   onMenuClick, 
-  fileCount 
+  fileCount,
+  onProgressClick
 }) => {
   const handleLogoClick = async () => {
     if (window.confirm('Return to home? You will be logged out.')) {
@@ -43,7 +45,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           </svg>
         </button>
 
-        {/* Logo - StudySync (Clickable to go home) */}
+        {/* Logo - Acadira (Clickable to go home) */}
         <button 
           onClick={handleLogoClick}
           className="flex items-center gap-3 px-2 py-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
@@ -60,7 +62,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             <AIBookIcon className="h-5 w-5" style={{ color: '#35d0c3' }} />
           </div>
           <span className="text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-            StudySync <span style={{
+            Acadira <span style={{
               background: 'linear-gradient(135deg, #35d0c3 0%, #8b93d4 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
@@ -68,6 +70,20 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             }}>AI</span>
           </span>
         </button>
+
+        {/* Progress/Stats Button */}
+        {onProgressClick && (
+          <button
+            onClick={onProgressClick}
+            className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+            aria-label="View study progress"
+            title="Study Progress"
+          >
+            <svg className="w-5 h-5" style={{ color: 'var(--color-text-secondary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* File Count Badge */}
