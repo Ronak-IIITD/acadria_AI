@@ -28,6 +28,31 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, './src'),
         }
-      }
+      },
+      build: {
+        // Production build optimizations
+        target: 'esnext',
+        minify: 'esbuild',
+        sourcemap: false,
+        // Chunk splitting for better caching
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              // Vendor chunks
+              'vendor-react': ['react', 'react-dom'],
+              'vendor-firebase': ['firebase/app', 'firebase/auth'],
+              'vendor-pdf': ['pdfjs-dist'],
+              'vendor-katex': ['katex'],
+              'vendor-highlight': ['highlight.js'],
+            }
+          }
+        },
+        // Increase chunk size warning limit (PDF worker is large)
+        chunkSizeWarningLimit: 1200,
+      },
+      // Optimize dependencies
+      optimizeDeps: {
+        include: ['react', 'react-dom', 'firebase/app', 'firebase/auth'],
+      },
     };
 });
