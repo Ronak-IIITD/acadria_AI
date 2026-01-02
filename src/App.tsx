@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard';
 import Login from './components/Login';
 import Header from './components/Header';
 import AnimatedGradientBackground from './components/AnimatedGradientBackground';
+import ErrorBoundary from './components/ErrorBoundary';
 import type { User } from './types';
 
 function App() {
@@ -130,34 +131,38 @@ function App() {
   }
 
   return (
-    <AnimatedGradientBackground>
-      <div className="app-container">
-        {/* Header - shown on all views */}
-        {currentView === 'landing' && (
-          <Header
-            user={user}
-            onLogout={handleLogout}
-            onLoginClick={() => setShowLogin(true)}
-            isScrolled={isScrolled}
-          />
-        )}
+    <ErrorBoundary>
+      <AnimatedGradientBackground>
+        <div className="app-container">
+          {/* Header - shown on all views */}
+          {currentView === 'landing' && (
+            <Header
+              user={user}
+              onLogout={handleLogout}
+              onLoginClick={() => setShowLogin(true)}
+              isScrolled={isScrolled}
+            />
+          )}
 
-        {/* Main Content */}
-        {currentView === 'landing' ? (
-          <LandingPage onGetStarted={handleGetStarted} />
-        ) : (
-          <Dashboard />
-        )}
+          {/* Main Content */}
+          <ErrorBoundary>
+            {currentView === 'landing' ? (
+              <LandingPage onGetStarted={handleGetStarted} />
+            ) : (
+              <Dashboard />
+            )}
+          </ErrorBoundary>
 
-        {/* Login Modal */}
-        {showLogin && (
-          <Login
-            onLogin={handleLogin}
-            onClose={() => setShowLogin(false)}
-          />
-        )}
-      </div>
-    </AnimatedGradientBackground>
+          {/* Login Modal */}
+          {showLogin && (
+            <Login
+              onLogin={handleLogin}
+              onClose={() => setShowLogin(false)}
+            />
+          )}
+        </div>
+      </AnimatedGradientBackground>
+    </ErrorBoundary>
   );
 }
 
