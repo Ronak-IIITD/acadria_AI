@@ -22,6 +22,11 @@ export interface ContentBlock {
   filename?: string; // Optional filename for code blocks
 }
 
+export interface SourceReference {
+  title: string;
+  page?: number;
+}
+
 export interface ChatMessage {
   id: string;
   text: string; // Deprecated: use blocks instead
@@ -33,7 +38,7 @@ export interface ChatMessage {
     displayText: string;
     query: string;
   }[];
-  sources?: string[];
+  sources?: (string | SourceReference)[];
 }
 
 export enum AiModel {

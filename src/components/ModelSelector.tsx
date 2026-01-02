@@ -28,7 +28,7 @@ const ModelSelector: FC<ModelSelectorProps> = ({ selectedModel, onModelChange })
         }}
       >
         {Object.values(AiModel).map((model) => {
-          const modelNames = {
+          const modelNames: Record<string, string> = {
             [AiModel.GEMINI_FLASH]: "Gemini 2.5 Flash",
             [AiModel.GEMINI_PRO]: "Gemini 2.5 Pro",
             [AiModel.GROK]: "Grok 4",

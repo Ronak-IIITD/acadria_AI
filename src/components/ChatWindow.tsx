@@ -305,7 +305,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQuest
         const errorStr = error?.message?.toLowerCase() || error?.toString()?.toLowerCase() || '';
 
         let errorText = "Sorry, I couldn't connect to the AI. Please try again.";
-        let followUpSuggestions = [];
+        let followUpSuggestions: { displayText: string; query: string }[] = [];
 
         // Handle structured error types first
         if (errorType === 'model_overload') {
@@ -549,15 +549,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ files, pendingQuestion, onQuest
                         <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-3 px-1">Sources:</h4>
                         <div className="flex flex-wrap items-start justify-start gap-2">
                             {msg.sources.map((source, i) => {
-                                const sourceFile = files.find(f => f.name === source.title);
+                                const sourceTitle = typeof source === 'string' ? source : source.title;
+                                const sourcePage = typeof source === 'string' ? undefined : source.page;
+                                const sourceFile = files.find(f => f.name === sourceTitle);
+                                const displayText = sourcePage ? `${sourceTitle} (p. ${sourcePage})` : sourceTitle;
                                 return (
                                     <div
                                         key={i}
                                         className="flex items-center px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-50/80 dark:bg-gray-800/50 rounded-full border border-gray-200/50 dark:border-gray-700/40 hover:bg-gray-100/80 dark:hover:bg-gray-700/60 transition-colors"
-                                        title={sourceName}
+                                        title={displayText}
                                     >
                                         {sourceFile && <FileIcon type={sourceFile.type} className="h-3.5 w-3.5 mr-2 flex-shrink-0" />}
-                                        <span className="truncate">{source.title} (p. {source.page})</span>
+                                        <span className="truncate">{displayText}</span>
                                     </div>
                                 );
                             })}

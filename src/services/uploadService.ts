@@ -20,12 +20,12 @@ export const uploadDocumentsToBackend = async (files: File[]): Promise<{
     });
 
     // Get auth headers (but don't include Content-Type for FormData)
-    const authHeaders = await getAuthHeaders();
+    const authHeaders = await getAuthHeaders() as Record<string, string>;
     delete authHeaders['Content-Type']; // Let browser set multipart/form-data
 
     const response = await fetch(`${BACKEND_URL}/api/upload`, {
       method: 'POST',
-      headers: authHeaders as HeadersInit,
+      headers: authHeaders,
       body: formData
     });
 

@@ -599,15 +599,18 @@ const CalmChatWindow: FC<ChatWindowProps> = ({
                     <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Sources:</p>
                     <div className="flex flex-wrap gap-2">
                       {msg.sources.map((source, i) => {
-                        const sourceFile = files.find(f => f.name === source.title);
+                        const sourceTitle = typeof source === 'string' ? source : source.title;
+                        const sourcePage = typeof source === 'string' ? undefined : source.page;
+                        const sourceFile = files.find(f => f.name === sourceTitle);
+                        const displayText = sourcePage ? `${sourceTitle} (p. ${sourcePage})` : sourceTitle;
                         return (
                           <div
                             key={i}
                             className="flex items-center px-3 py-1.5 text-xs font-medium rounded-full bg-white/60 dark:bg-gray-800/40 border border-gray-200/60 dark:border-gray-700/40 shadow-sm"
-                            title={`${source.title} (page ${source.page})`}
+                            title={displayText}
                           >
                             {sourceFile && <FileIcon type={sourceFile.type} className="h-3.5 w-3.5 mr-1.5" />}
-                            <span className="truncate">{source.title} (p. {source.page})</span>
+                            <span className="truncate">{displayText}</span>
                           </div>
                         );
                       })}
