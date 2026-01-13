@@ -81,8 +81,9 @@ Acadira AI is an intelligent learning platform that turns your study materials i
 
 #### 1. Clone the Repository
 ```bash
-git clone https://github.com/Ronak-IIITD/StudySyncAI.git
-cd StudySyncAI
+git clone https://github.com/Ronak-IIITD/acadria_AI.git
+cd acadria_AI
+npm install
 ```
 
 #### 2. Frontend Setup
@@ -373,8 +374,8 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 ## Contact & Links
 
 - **GitHub**: [@Ronak-IIITD](https://github.com/Ronak-IIITD)
-- **Repository**: [StudySyncAI](https://github.com/Ronak-IIITD/StudySyncAI)
-- **Issues**: [Report a bug](https://github.com/Ronak-IIITD/StudySyncAI/issues)
+- **Repository**: [Acadira AI](https://github.com/Ronak-IIITD/acadria_AI)
+- **Issues**: [Report a bug](https://github.com/Ronak-IIITD/acadria_AI/issues)
 
 ---
 
