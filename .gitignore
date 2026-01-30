@@ -52,4 +52,5 @@ ENV/
 # Internal documentation (AI-generated, not for repo)
 AGENTS.md
 RAG_IMPROVEMENTS.md
+SAAS_CONVERSION.md
 backend/test_rag_improvements.py
