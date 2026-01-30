@@ -6,7 +6,6 @@ import Login from './Login';
 import AdminLogin from './AdminLogin';
 import Onboarding from './Onboarding';
 import Dashboard from './Dashboard';
-import Header from './Header';
 import type { User } from '../types';
 
 interface AuthGateProps {
@@ -24,6 +23,21 @@ const AuthGate = ({ children }: AuthGateProps) => {
   const [currentView, setCurrentView] = useState<'landing' | 'login' | 'admin' | 'onboarding' | 'dashboard'>('landing');
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+
+  // Force light mode on landing page ONLY
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (currentView === 'landing' || showLogin) {
+      // Landing page and login should always be light mode
+      root.classList.remove('dark');
+      root.classList.add('light');
+    } else {
+      // Restore user's theme preference for authenticated views
+      const savedTheme = localStorage.getItem('theme') || 'light';
+      root.classList.remove('light', 'dark');
+      root.classList.add(savedTheme);
+    }
+  }, [currentView, showLogin]);
 
   useEffect(() => {
     // Check for admin session in localStorage
@@ -230,6 +244,10 @@ const AuthGate = ({ children }: AuthGateProps) => {
           </button>
         </div>
         <Login 
+          onLogin={() => {
+            // Firebase auth state change will handle this automatically
+            setShowLogin(false);
+          }}
           onClose={() => {
             setShowLogin(false);
             setCurrentView('landing');
@@ -264,18 +282,7 @@ const AuthGate = ({ children }: AuthGateProps) => {
 
   // Show Dashboard for authenticated users (regular or admin)
   if (currentView === 'dashboard' && user) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Header 
-          user={user} 
-          onLogout={handleLogout}
-          onAdminLogout={user.isAdmin ? handleAdminLogout : undefined}
-        />
-        <Dashboard 
-          user={user}
-        />
-      </div>
-    );
+    return <Dashboard />;
   }
 
   // Fallback to landing

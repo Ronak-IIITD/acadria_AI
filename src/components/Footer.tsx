@@ -1,7 +1,11 @@
 import type { FC } from 'react';
 import AIBookIcon from './icons/AIBookIcon';
 
-const Footer: FC = () => {
+interface FooterProps {
+  onAdminLogin?: () => void;
+}
+
+const Footer: FC<FooterProps> = ({ onAdminLogin }) => {
   const currentYear = new Date().getFullYear();
 
   const footerLinks = {
@@ -136,9 +140,21 @@ const Footer: FC = () => {
         {/* Bottom Bar */}
         <div className="pt-8 border-t flex flex-col sm:flex-row justify-between items-center gap-4"
              style={{ borderColor: 'var(--color-border-light)' }}>
-          <p className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-            © {currentYear} StudySync AI. All rights reserved.
-          </p>
+          <div className="flex items-center gap-4">
+            <p className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+              © {currentYear} StudySync AI. All rights reserved.
+            </p>
+            {onAdminLogin && (
+              <button
+                onClick={onAdminLogin}
+                className="text-xs font-medium opacity-50 hover:opacity-100 transition-opacity"
+                style={{ color: 'var(--color-text-tertiary)' }}
+                aria-label="Admin Access"
+              >
+                Admin
+              </button>
+            )}
+          </div>
           
           <div className="flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
             <span>Crafted with</span>

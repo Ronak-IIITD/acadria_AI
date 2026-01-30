@@ -8,9 +8,10 @@ import ScrollReveal from './ScrollReveal';
 
 interface LandingPageProps {
   onGetStarted: () => void;
+  onAdminLogin: () => void;
 }
 
-const LandingPage: FC<LandingPageProps> = ({ onGetStarted }) => {
+const LandingPage: FC<LandingPageProps> = ({ onGetStarted, onAdminLogin }) => {
   return (
     <div className="animate-fade-in relative">
       {/* Full Page Gradient Background */}
@@ -201,7 +202,7 @@ const LandingPage: FC<LandingPageProps> = ({ onGetStarted }) => {
 
       {/* Footer Section */}
       <ScrollReveal animation="fade" delay={0.1}>
-        <Footer />
+        <Footer onAdminLogin={onAdminLogin} />
       </ScrollReveal>
     </div>
   );
