@@ -374,7 +374,16 @@ export const getAiResponse = async (
     performWebSearch: boolean,
     selectedModel: string = 'gemini',  // ← Model selection (gemini/grok)
     levelUpMode: boolean = false  // ← NEW: Level Up+ mode
-): Promise<{ blocks: ContentBlock[], suggestions: { displayText: string; query: string }[], sources: string[] }> => {
+): Promise<{ 
+    blocks: ContentBlock[], 
+    suggestions: { displayText: string; query: string }[], 
+    sources: string[],
+    metadata?: {
+        context_quality?: number;
+        context_retrieved?: boolean;
+        grounded?: boolean;
+    }
+}> => {
     // Check if backend API is available
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
@@ -394,13 +403,11 @@ export const getAiResponse = async (
 
         if (response.ok) {
             const data = await response.json();
-            console.log('✅ Received structured response from backend:', data);
-
-            // Backend returns { blocks, suggestions, sources }
             return {
                 blocks: data.blocks || [],
                 suggestions: data.suggestions || [],
-                sources: data.sources || []
+                sources: data.sources || [],
+                metadata: data.metadata || {} // Include context quality and other metadata
             };
         } else {
             // Parse error details from backend

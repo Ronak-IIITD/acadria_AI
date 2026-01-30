@@ -39,6 +39,11 @@ export interface ChatMessage {
     query: string;
   }[];
   sources?: (string | SourceReference)[];
+  metadata?: {
+    context_quality?: number;
+    context_retrieved?: boolean;
+    grounded?: boolean;
+  };
 }
 
 export enum AiModel {

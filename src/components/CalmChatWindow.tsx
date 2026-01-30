@@ -319,7 +319,7 @@ const CalmChatWindow: FC<ChatWindowProps> = ({
       console.log('🤖 [CalmChat] Using model:', model);
       console.log('🚀 [CalmChat] Level Up+ mode:', levelUpEnabled ? 'ENABLED' : 'disabled');
       const performWebSearch = useWebSearch;
-      const { blocks, suggestions: followUpSuggestions, sources } = await getAiResponse(
+      const { blocks, suggestions: followUpSuggestions, sources, metadata } = await getAiResponse(
         textToSend, 
         files, 
         performWebSearch,
@@ -327,7 +327,20 @@ const CalmChatWindow: FC<ChatWindowProps> = ({
         levelUpEnabled  // ← NEW: Pass Level Up+ mode to API
       );
       
-      console.log('📥 [CalmChat] Received response:', { blocks, followUpSuggestions, sources });
+      console.log('📥 [CalmChat] Received response:', { blocks, followUpSuggestions, sources, metadata });
+      
+      // Log context quality information
+      if (metadata?.context_quality !== undefined) {
+        const quality = metadata.context_quality;
+        if (quality >= 0.7) {
+          console.log('✅ High quality context retrieved:', quality.toFixed(2));
+        } else if (quality >= 0.3) {
+          console.log('⚠️ Medium quality context retrieved:', quality.toFixed(2));
+        } else {
+          console.warn('❌ Low quality context:', quality.toFixed(2));
+        }
+      }
+      
       if (!blocks || blocks.length === 0) {
         console.warn('⚠️ [CalmChat] Received empty blocks array!');
       }
@@ -340,6 +353,7 @@ const CalmChatWindow: FC<ChatWindowProps> = ({
         timestamp: Date.now(),
         followUpSuggestions,
         sources,
+        metadata, // Include metadata for potential UI display
       };
 
       setMessages(prev => prev.filter(m => !m.isTyping).concat(aiMessage));

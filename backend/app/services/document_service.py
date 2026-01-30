@@ -7,8 +7,9 @@ from docx import Document
 import markdown
 import re
 import fitz  # PyMuPDF for annotation extraction
-from app.services.rag_service import get_rag_service
+from app.services.rag_service_improved import get_rag_service_improved
 from app.services.embedding_service import get_embedding_service
+
 
 class DocumentService:
     """
@@ -18,19 +19,19 @@ class DocumentService:
     """
 
     def __init__(self):
-        # Use singleton RAG service to share document store across modules
-        self.rag_service = get_rag_service()
+        # Use singleton RAG service (improved version) to share document store across modules
+        self.rag_service = get_rag_service_improved()
         self.embedding_service = get_embedding_service()
-        
+
         # Simple text chunking parameters
         self.chunk_size = 1000
         self.chunk_overlap = 200
-        
+
         # Store document metadata
         self.documents: Dict[str, Dict[str, Any]] = {}
         self.storage_path = "data/documents"
         os.makedirs(self.storage_path, exist_ok=True)
-    
+
     async def process_document(self, file: UploadFile, user_id: str) -> str:
         """
         Process uploaded document and add to RAG service.
@@ -40,27 +41,27 @@ class DocumentService:
         try:
             original_filename = file.filename
             content_type = file.content_type
-            
+
             # Generate unique document ID
             doc_id = str(uuid.uuid4())
-            
+
             # SECURITY: Sanitize filename to prevent path traversal attacks
             # Remove any directory components and dangerous characters
             safe_filename = os.path.basename(original_filename)
-            safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', safe_filename)
+            safe_filename = re.sub(r"[^a-zA-Z0-9._-]", "_", safe_filename)
             # Use doc_id prefix to ensure uniqueness
             filename = f"{doc_id}_{safe_filename}"
 
             # Save file temporarily for processing (Stream to disk)
             temp_path = os.path.join(self.storage_path, filename)
-            
+
             # Get file size while writing
             file_size = 0
             with open(temp_path, "wb") as buffer:
                 while chunk := await file.read(1024 * 1024):  # Read in 1MB chunks
                     buffer.write(chunk)
                     file_size += len(chunk)
-            
+
             # Reset file cursor for safety (though we use temp_path now)
             await file.seek(0)
 
@@ -74,7 +75,9 @@ class DocumentService:
             # Split text into chunks
             chunks = self._split_text(text)
 
-            print(f"📄 Generating embeddings for {len(chunks)} chunks from {filename}...")
+            print(
+                f"📄 Generating embeddings for {len(chunks)} chunks from {filename}..."
+            )
 
             # Generate embeddings for all chunks
             embeddings = self.embedding_service.batch_generate_embeddings(chunks)
@@ -88,22 +91,24 @@ class DocumentService:
                     "filename": filename,
                     "chunk_index": i,
                     "total_chunks": len(chunks),
-                    "chunk_index": i,
-                    "total_chunks": len(chunks),
                     "content_type": "document",  # Regular document content
-                    "user_id": user_id
+                    "user_id": user_id,
                 }
                 for i, (chunk, embedding) in enumerate(zip(chunks, embeddings))
             ]
 
             if self.embedding_service.is_available():
-                print(f"✅ Generated {len([e for e in embeddings if e is not None])} embeddings for {filename}")
+                print(
+                    f"✅ Generated {len([e for e in embeddings if e is not None])} embeddings for {filename}"
+                )
             else:
-                print(f"ℹ️ Embedding service unavailable - will use keyword fallback for {filename}")
+                print(
+                    f"ℹ️ Embedding service unavailable - will use keyword fallback for {filename}"
+                )
 
             # FOR PDFs: Extract highlights with colors
             highlight_chunks = []
-            if filename.endswith('.pdf'):
+            if filename.endswith(".pdf"):
                 highlights = self._extract_pdf_highlights(temp_path)
 
                 if highlights:
@@ -112,7 +117,7 @@ class DocumentService:
                     # Group highlights by color
                     highlights_by_color = {}
                     for hl in highlights:
-                        color = hl['color']
+                        color = hl["color"]
                         if color not in highlights_by_color:
                             highlights_by_color[color] = []
                         highlights_by_color[color].append(hl)
@@ -120,28 +125,36 @@ class DocumentService:
                     # Create separate chunks for each color group
                     for color, color_highlights in highlights_by_color.items():
                         # Combine all highlights of this color into one text
-                        highlight_text = "\n\n".join([
-                            f"[Page {hl['page']}] {hl['text']}"
-                            for hl in color_highlights
-                        ])
+                        highlight_text = "\n\n".join(
+                            [
+                                f"[Page {hl['page']}] {hl['text']}"
+                                for hl in color_highlights
+                            ]
+                        )
 
                         # Generate embedding for this color group
-                        highlight_embedding = self.embedding_service.generate_embedding(highlight_text)
+                        highlight_embedding = self.embedding_service.generate_embedding(
+                            highlight_text
+                        )
 
-                        highlight_chunks.append({
-                            "content": highlight_text,
-                            "embedding": highlight_embedding,
-                            "document_id": doc_id,
-                            "filename": filename,
-                            "document_id": doc_id,
-                            "filename": filename,
-                            "content_type": "highlight",
-                            "highlight_color": color,
-                            "highlight_count": len(color_highlights),
-                            "user_id": user_id
-                        })
+                        highlight_chunks.append(
+                            {
+                                "content": highlight_text,
+                                "embedding": highlight_embedding,
+                                "document_id": doc_id,
+                                "filename": filename,
+                                "document_id": doc_id,
+                                "filename": filename,
+                                "content_type": "highlight",
+                                "highlight_color": color,
+                                "highlight_count": len(color_highlights),
+                                "user_id": user_id,
+                            }
+                        )
 
-                    print(f"✅ Processed highlights: {', '.join([f'{count} {color}' for color, highlights in highlights_by_color.items() for count in [len(highlights)]])}")
+                    print(
+                        f"✅ Processed highlights: {', '.join([f'{count} {color}' for color, highlights in highlights_by_color.items() for count in [len(highlights)]])}"
+                    )
 
             # Add both regular chunks and highlight chunks to RAG service
             all_chunks = doc_chunks + highlight_chunks
@@ -154,12 +167,8 @@ class DocumentService:
                 "content_type": content_type,
                 "chunks": len(chunks),
                 "highlights": len(highlight_chunks),
-                "chunks": len(chunks),
-                "highlights": len(highlight_chunks),
-                "chunks": len(chunks),
-                "highlights": len(highlight_chunks),
                 "size": file_size,
-                "user_id": user_id
+                "user_id": user_id,
             }
 
             # Clean up temp file
@@ -174,15 +183,15 @@ class DocumentService:
             if os.path.exists(temp_path):
                 os.remove(temp_path)
             raise Exception(f"Error processing document: {str(e)}")
-    
+
     def _split_text(self, text: str) -> List[str]:
         """
         Simple text splitting with overlap.
         Splits on paragraph boundaries when possible.
         """
         chunks = []
-        paragraphs = text.split('\n\n')
-        
+        paragraphs = text.split("\n\n")
+
         current_chunk = ""
         for para in paragraphs:
             if len(current_chunk) + len(para) < self.chunk_size:
@@ -191,31 +200,31 @@ class DocumentService:
                 if current_chunk:
                     chunks.append(current_chunk.strip())
                 current_chunk = para + "\n\n"
-        
+
         if current_chunk:
             chunks.append(current_chunk.strip())
-        
+
         return chunks if chunks else [text]
-    
+
     def _extract_text_from_file(self, filepath: str, filename: str) -> str:
         """Extract text from different file formats using the saved file"""
         try:
             # Extract based on file type
-            if filename.endswith('.pdf'):
+            if filename.endswith(".pdf"):
                 return self._extract_from_pdf(filepath)
-            elif filename.endswith('.docx'):
+            elif filename.endswith(".docx"):
                 return self._extract_from_docx(filepath)
-            elif filename.endswith('.txt'):
+            elif filename.endswith(".txt"):
                 return self._extract_from_txt(filepath)
-            elif filename.endswith('.md'):
+            elif filename.endswith(".md"):
                 return self._extract_from_markdown(filepath)
-            elif filename.endswith('.rtf'):
+            elif filename.endswith(".rtf"):
                 return self._extract_from_rtf(filepath)
             else:
                 raise ValueError(f"Unsupported file type: {filename}")
         except Exception as e:
             raise ValueError(f"Failed to extract text: {str(e)}")
-    
+
     def _extract_from_pdf(self, filepath: str) -> str:
         """Extract text from PDF"""
         reader = PdfReader(filepath)
@@ -260,7 +269,9 @@ class DocumentService:
                                 highlight_text = " ".join([w[4] for w in words])
 
                             # Get annotation color (RGB values 0-1)
-                            color_values = annot.colors.get("stroke", None) or annot.colors.get("fill", None)
+                            color_values = annot.colors.get(
+                                "stroke", None
+                            ) or annot.colors.get("fill", None)
 
                             if color_values:
                                 # Convert RGB to color name
@@ -269,14 +280,18 @@ class DocumentService:
                                 color_name = "yellow"  # Default highlight color
 
                             if highlight_text.strip():
-                                highlights.append({
-                                    "text": highlight_text.strip(),
-                                    "color": color_name,
-                                    "page": page_num,
-                                    "type": "highlight"
-                                })
+                                highlights.append(
+                                    {
+                                        "text": highlight_text.strip(),
+                                        "color": color_name,
+                                        "page": page_num,
+                                        "type": "highlight",
+                                    }
+                                )
                         except Exception as e:
-                            print(f"⚠️  Error extracting annotation on page {page_num}: {e}")
+                            print(
+                                f"⚠️  Error extracting annotation on page {page_num}: {e}"
+                            )
                             continue
 
             pdf_document.close()
@@ -311,45 +326,47 @@ class DocumentService:
 
         # Default to yellow if no match
         return "yellow"
-    
+
     def _extract_from_docx(self, filepath: str) -> str:
         """Extract text from DOCX"""
         doc = Document(filepath)
         text = "\n".join([para.text for para in doc.paragraphs])
         return text
-    
+
     def _extract_from_txt(self, filepath: str) -> str:
         """Extract text from TXT"""
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, "r", encoding="utf-8") as f:
             return f.read()
-    
+
     def _extract_from_markdown(self, filepath: str) -> str:
         """Extract text from Markdown"""
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, "r", encoding="utf-8") as f:
             md_content = f.read()
             # Convert markdown to plain text
             html = markdown.markdown(md_content)
             # Simple HTML tag removal
-            text = re.sub('<[^<]+?>', '', html)
+            text = re.sub("<[^<]+?>", "", html)
             return text
-    
+
     def _extract_from_rtf(self, filepath: str) -> str:
         """Extract text from RTF"""
         # Basic RTF parsing (for production, use striprtf library)
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
             # Remove RTF formatting codes (basic approach)
-            text = re.sub(r'\\[a-z]+\d*\s?', '', content)
-            text = re.sub(r'[{}]', '', text)
+            text = re.sub(r"\\[a-z]+\d*\s?", "", content)
+            text = re.sub(r"[{}]", "", text)
             return text
-    
+
     async def delete_document(self, document_id: str, user_id: str):
         """Delete document from storage and RAG store"""
         if document_id in self.documents:
             # Check ownership
             doc = self.documents[document_id]
             if doc.get("user_id") != user_id:
-                print(f"⚠️ User {user_id} attempted to delete document {document_id} owned by {doc.get('user_id')}")
+                print(
+                    f"⚠️ User {user_id} attempted to delete document {document_id} owned by {doc.get('user_id')}"
+                )
                 raise ValueError("Document not found or access denied")
 
             # Remove from metadata
@@ -359,7 +376,7 @@ class DocumentService:
             print(f"✅ Deleted document {document_id} from metadata and RAG store")
         else:
             print(f"⚠️ Document {document_id} not found in metadata")
-    
+
     async def list_documents(self, user_id: str) -> List[Dict[str, Any]]:
         """List all uploaded documents for a specific user"""
         return [doc for doc in self.documents.values() if doc.get("user_id") == user_id]
