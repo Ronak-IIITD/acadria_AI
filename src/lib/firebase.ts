@@ -60,25 +60,25 @@ if (isFirebaseConfigured) {
     console.warn('⚠️  App will run without Firebase authentication');
   }
 } else {
-  console.warn('⚠️  Firebase not configured. Using mock auth for development.');
-  console.warn('⚠️  Set VITE_FIREBASE_* environment variables in .env.local to enable Firebase.');
-
-  // Create mock auth object for development - with proper methods
-  auth = {
-    currentUser: null,
-    signOut: async () => {
-      console.log('🔧 Mock signOut called');
-    },
-    // Mock onAuthStateChanged - returns no user
-    onAuthStateChanged: (callback: any) => {
-      // Immediately call with no user
-      setTimeout(() => callback(null), 0);
-      // Return unsubscribe function
-      return () => {};
-    }
-  } as any;
-
-  googleProvider = null;
+  // CRITICAL: No mock auth - Firebase MUST be configured for SaaS mode
+  console.error('❌ Firebase configuration is missing!');
+  console.error('❌ This application requires Firebase authentication to function.');
+  console.error('❌ Please set the following environment variables in .env.local:');
+  console.error('   - VITE_FIREBASE_API_KEY');
+  console.error('   - VITE_FIREBASE_AUTH_DOMAIN');
+  console.error('   - VITE_FIREBASE_PROJECT_ID');
+  console.error('   - VITE_FIREBASE_STORAGE_BUCKET');
+  console.error('   - VITE_FIREBASE_MESSAGING_SENDER_ID');
+  console.error('   - VITE_FIREBASE_APP_ID');
+  console.error('');
+  console.error('💡 Get these values from your Firebase Console > Project Settings');
+  
+  // Throw error to prevent app from running without auth
+  throw new Error(
+    'Firebase Authentication Required\n\n' +
+    'This application cannot function without Firebase authentication.\n' +
+    'Please contact support if you see this message.'
+  );
 }
 
 export { auth, googleProvider, db, storage };

@@ -53,4 +53,5 @@ ENV/
 AGENTS.md
 RAG_IMPROVEMENTS.md
 SAAS_CONVERSION.md
+DETAILED_IMPLEMENTATION_PLAN.md
 backend/test_rag_improvements.py

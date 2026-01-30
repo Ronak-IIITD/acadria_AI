@@ -5,6 +5,11 @@
 export interface User {
   name: string;
   email: string;
+  photoURL?: string;
+  uid?: string;
+  isAdmin?: boolean;
+  plan?: 'free' | 'pro' | 'team' | 'admin';
+  privileges?: string[];
 }
 
 export interface StudyFile {
