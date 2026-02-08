@@ -43,7 +43,7 @@ const Footer: FC<FooterProps> = ({ onAdminLogin }) => {
                 <AIBookIcon className="h-6 w-6" />
               </div>
               <span className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-                StudySync AI
+                Acadira AI
               </span>
             </div>
             <p className="text-sm leading-relaxed mb-6 ml-1" 
@@ -142,7 +142,7 @@ const Footer: FC<FooterProps> = ({ onAdminLogin }) => {
              style={{ borderColor: 'var(--color-border-light)' }}>
           <div className="flex items-center gap-4">
             <p className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-              © {currentYear} StudySync AI. All rights reserved.
+              © {currentYear} Acadira AI. All rights reserved.
             </p>
             {onAdminLogin && (
               <button
