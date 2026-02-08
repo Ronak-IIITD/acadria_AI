@@ -68,7 +68,7 @@ const WelcomeState: FC = () => (
       color: 'var(--color-text-primary)',
       letterSpacing: '-0.01em' 
     }}>
-      Welcome to StudySync AI
+      Welcome to Acadira AI
     </h2>
     
     {/* Subtext */}

@@ -6,12 +6,12 @@ type Props = {
 };
 
 /**
- * StudySync AI brand mark
+ * Acadira AI brand mark
  * A simple, scalable SVG that adapts to light/dark themes using CSS variables.
  * - Bot head sitting above an open book
  * - Gradient teal → purple fill that works on light and dark
  */
-const StudySyncLogo: React.FC<Props> = ({ className, title = 'StudySync AI' }) => {
+const StudySyncLogo: React.FC<Props> = ({ className, title = 'Acadira AI' }) => {
   const id = React.useId();
   const gradId = `brand-grad-${id}`;
   return (

@@ -79,7 +79,7 @@ const Header: FC<HeaderProps> = ({ user, onLogout, onLoginClick, isScrolled }) =
               <AIBookIcon className="h-5.0 w-5.0" style={{ color: '#35d0c3' }} />
             </div>
             <h1 className="text-base brand-word font-semibold transition-opacity duration-200 group-hover:opacity-80" style={{ color: 'var(--color-text-primary)' }}>
-              StudySync <span className="brand-ai">AI</span>
+              Acadira <span className="brand-ai">AI</span>
             </h1>
           </a>
           

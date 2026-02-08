@@ -23,7 +23,7 @@ const About: FC = () => {
           
           <p className="text-lg sm:text-xl leading-relaxed" 
              style={{ color: 'var(--color-text-secondary)' }}>
-            StudySync AI was built to transform how students learn and interact with their study materials. 
+            Acadira AI was built to transform how students learn and interact with their study materials. 
             We believe that learning should be intuitive, engaging, and accessible to everyone. 
             By combining cutting-edge AI technology with thoughtful design, we've created a platform 
             that makes studying more efficient and effective.

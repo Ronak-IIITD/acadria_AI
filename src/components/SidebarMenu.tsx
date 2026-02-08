@@ -128,7 +128,7 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
               <AIBookIcon className="h-5 w-5" style={{ color: '#35d0c3' }} />
             </div>
             <span className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
-              StudySync AI
+              Acadira AI
             </span>
           </div>
           <button

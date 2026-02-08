@@ -533,7 +533,7 @@ export const getAiResponse = async (
         console.log(`Context size: ${totalContextSize} characters, ${contentChunks.length} chunks from ${contextFiles.length} file(s)`);
 
         // Use structured JSON prompt with grounding
-        const prompt = `You are StudySync AI — a calm, knowledgeable, and helpful academic assistant for students.
+        const prompt = `You are Acadira AI — a calm, knowledgeable, and helpful academic assistant for students.
 
 **🚨 CRITICAL GROUNDING RULE - YOU MUST FOLLOW THIS:**
 You answer questions using ONLY the content provided in the uploaded documents below.
