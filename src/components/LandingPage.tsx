@@ -5,6 +5,7 @@ import Testimonials from './Testimonials';
 import About from './About';
 import WhyThisWorks from './WhyThisWorks';
 import ScrollReveal from './ScrollReveal';
+import LandingHeader from './LandingHeader';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -14,6 +15,8 @@ interface LandingPageProps {
 const LandingPage: FC<LandingPageProps> = ({ onGetStarted, onAdminLogin }) => {
   return (
     <div className="animate-fade-in relative">
+      {/* Navigation Header */}
+      <LandingHeader onGetStarted={onGetStarted} />
       {/* Full Page Gradient Background */}
       <div className="fixed inset-0 -z-10"
            style={{
