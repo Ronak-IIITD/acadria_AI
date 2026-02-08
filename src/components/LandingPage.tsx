@@ -68,15 +68,15 @@ const LandingPage: FC<LandingPageProps> = ({ onGetStarted, onAdminLogin }) => {
 
           {/* Main Headline - Bolder and Sharper */}
           <ScrollReveal animation="slide-up" delay={0.2}>
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black mb-8 animate-fade-in-up"
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black mb-8 animate-fade-in-up"
                 style={{ 
                   color: 'var(--color-text-primary)',
                   letterSpacing: '-0.03em',
-                  lineHeight: '1.1',
+                  lineHeight: '1.15',
                   textShadow: '0 2px 20px rgba(0, 0, 0, 0.05)',
                   animationDelay: '0.1s'
                 }}>
-              The AI Study Assistant
+              🌿 Your Knowledge,
               <br />
               <span className="relative inline-block group"
                     style={{ 
@@ -85,9 +85,9 @@ const LandingPage: FC<LandingPageProps> = ({ onGetStarted, onAdminLogin }) => {
                       WebkitTextFillColor: 'transparent',
                       backgroundClip: 'text',
                       filter: 'brightness(1.1)',
-                                          textShadow: 'none'
+                      textShadow: 'none'
                     }}>
-                Built for Learners
+                Transformed Into Understanding
                 <div className="absolute -bottom-2 left-0 right-0 h-1 rounded-full opacity-40 transition-all duration-500 group-hover:opacity-100 group-hover:h-1.5"
                      style={{ background: 'linear-gradient(90deg, #35d0c3, #8b93d4)' }}></div>
               </span>
@@ -96,14 +96,14 @@ const LandingPage: FC<LandingPageProps> = ({ onGetStarted, onAdminLogin }) => {
 
           {/* Subtitle - More prominent */}
           <ScrollReveal animation="fade" delay={0.3}>
-            <p className="mt-10 max-w-xl mx-auto text-lg sm:text-xl font-medium animate-fade-in-up"
+            <p className="mt-10 max-w-2xl mx-auto text-lg sm:text-xl font-medium animate-fade-in-up"
                style={{ 
                  color: 'var(--color-text-secondary)',
                  lineHeight: '1.6',
                  letterSpacing: '-0.01em',
                  animationDelay: '0.2s'
                }}>
-              Transform your lecture notes into personalized study tools—flashcards, quizzes, and an AI tutor that knows your material.
+              Turn your notes and documents into clear explanations, flashcards, quizzes, and personalized guidance — all built from your own material.
             </p>
           </ScrollReveal>
 
