@@ -87,7 +87,7 @@ const About: FC = () => {
                  color: 'var(--color-text-secondary)',
                  lineHeight: '1.8'
                }}>
-              Acadira AI was built by students, for students. We know the struggle of late-night cramming 
+              Acadira AI was built by student, for students. We know the struggle of late-night cramming 
               and scattered notes. That's why we created a platform that transforms your study materials 
               into personalized learning experiences — making studying more efficient, effective, and 
               actually enjoyable.
