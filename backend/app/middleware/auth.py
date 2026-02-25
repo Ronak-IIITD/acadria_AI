@@ -1,87 +1,47 @@
 """
-Authentication middleware for Firebase token verification.
-Supports both regular Firebase users and Admin users.
+Authentication middleware for Supabase JWT verification.
+Supports both Supabase and Firebase (for migration).
 """
 
 import os
+import logging
 from typing import Optional
 from fastapi import HTTPException, Security, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-import firebase_admin
-from firebase_admin import credentials, auth
-import logging
+import jwt
+from jwt import PyJWKClient, PyJWKClientError
+
+from app.config import SUPABASE_URL, SUPABASE_ANON_KEY
 
 logger = logging.getLogger(__name__)
 
-# Initialize Firebase Admin SDK (singleton pattern)
-_firebase_initialized = False
-
-
-def initialize_firebase():
-    """Initialize Firebase Admin SDK if not already initialized."""
-    global _firebase_initialized
-
-    if _firebase_initialized:
-        return
-
-    try:
-        # Check if Firebase credentials path is provided
-        creds_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
-
-        # If path is relative, resolve it relative to the backend directory
-        if creds_path:
-            from pathlib import Path
-
-            backend_dir = Path(
-                __file__
-            ).parent.parent.parent  # backend/app/middleware -> backend
-
-            if not os.path.isabs(creds_path):
-                creds_path = str(backend_dir / creds_path)
-
-            logger.info(f"🔍 Looking for Firebase credentials at: {creds_path}")
-
-        if creds_path and os.path.exists(creds_path):
-            # Initialize with service account
-            cred = credentials.Certificate(creds_path)
-            firebase_admin.initialize_app(cred)
-            logger.info("✅ Firebase Admin initialized with service account")
-        else:
-            # Log warning if file not found
-            if creds_path:
-                logger.warning(
-                    f"⚠️ Firebase credentials file not found at: {creds_path}"
-                )
-            # Initialize with default credentials (works in Google Cloud environments)
-            firebase_admin.initialize_app()
-            logger.info("✅ Firebase Admin initialized with default credentials")
-
-        _firebase_initialized = True
-    except ValueError as e:
-        # App already initialized
-        if "The default Firebase app already exists" in str(e):
-            _firebase_initialized = True
-            logger.info("✅ Firebase Admin already initialized")
-        else:
-            raise
-    except Exception as e:
-        logger.error(f"❌ Failed to initialize Firebase Admin: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail="Firebase authentication is not configured properly"
-        )
-
-
-# Security scheme for Bearer token - always requires auth
+# Security scheme - always requires auth
 security = HTTPBearer(auto_error=True)
-# Separate security instance for optional authentication
 optional_security = HTTPBearer(auto_error=False)
 
+# Supabase JWKS client (cached)
+_supabase_jwks_client: Optional[PyJWKClient] = None
 
-async def verify_firebase_token(
+
+def _get_supabase_jwks() -> PyJWKClient:
+    """Get or create Supabase JWKS client for token verification"""
+    global _supabase_jwks_client
+
+    if _supabase_jwks_client is None:
+        if not SUPABASE_URL:
+            raise ValueError("SUPABASE_URL not configured")
+
+        jwks_url = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
+        _supabase_jwks_client = PyJWKClient(jwks_url)
+
+    return _supabase_jwks_client
+
+
+async def verify_supabase_token(
     credentials: HTTPAuthorizationCredentials = Security(security),
 ) -> dict:
     """
-    Verify Firebase ID token and return decoded token.
+    Verify Supabase JWT token and return decoded token.
 
     Args:
         credentials: HTTP Authorization credentials from request header
@@ -92,53 +52,100 @@ async def verify_firebase_token(
     Raises:
         HTTPException: If token is invalid or verification fails
     """
-    if not credentials or not hasattr(credentials, "credentials"):
+    if not credentials:
         raise HTTPException(status_code=401, detail="Authorization header missing")
 
     token = credentials.credentials
 
     try:
-        # Initialize Firebase if not already done
-        initialize_firebase()
+        # Get the signing key from Supabase JWKS
+        signing_key = _get_supabase_jwks().get_signing_key_from_jwt(token)
 
-        # Verify the Firebase ID token
-        decoded_token = auth.verify_id_token(token)
+        # Decode and verify the token
+        decoded = jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=["authenticated"],
+            options={
+                "verify_aud": True,
+                "verify_exp": True,
+                "verify_iss": True,
+            },
+            issuer=f"{SUPABASE_URL}/auth/v1",
+        )
 
-        logger.info(f"✅ Token verified for user: {decoded_token.get('uid')}")
-        return decoded_token
+        logger.info(f"✅ Supabase token verified for user: {decoded.get('sub')}")
+        return decoded
 
-    except auth.InvalidIdTokenError:
-        logger.warning("⚠️ Invalid Firebase ID token")
-        raise HTTPException(status_code=401, detail="Invalid authentication token")
-    except auth.ExpiredIdTokenError:
-        logger.warning("⚠️ Expired Firebase ID token")
+    except jwt.ExpiredSignatureError:
+        logger.warning("⚠️ Expired Supabase token")
         raise HTTPException(status_code=401, detail="Authentication token has expired")
-    except auth.RevokedIdTokenError:
-        logger.warning("⚠️ Revoked Firebase ID token")
+    except jwt.InvalidTokenError as e:
+        logger.warning(f"⚠️ Invalid Supabase token: {str(e)}")
+        raise HTTPException(status_code=401, detail="Invalid authentication token")
+    except PyJWKClientError as e:
+        logger.error(f"❌ JWKS client error: {str(e)}")
         raise HTTPException(
-            status_code=401, detail="Authentication token has been revoked"
+            status_code=401, detail="Authentication service unavailable"
         )
     except Exception as e:
         logger.error(f"❌ Token verification failed: {str(e)}")
         raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
 
 
-async def get_current_user(token_data: dict = Depends(verify_firebase_token)) -> dict:
+async def verify_firebase_token_fallback(
+    creds: Optional[HTTPAuthorizationCredentials] = Security(security),
+) -> dict:
     """
-    Extract current user information from verified token.
+    Fallback: Verify Firebase ID token.
+    This is for migration purposes - will be deprecated.
+    """
+    # Import here to avoid breaking if firebase-admin is not set up
+    import firebase_admin
+    from firebase_admin import credentials as fb_credentials, auth
+
+    if not creds:
+        raise HTTPException(status_code=401, detail="Authorization header missing")
+
+    token = creds.credentials
+
+    try:
+        # Initialize Firebase if not already done
+        if not firebase_admin._apps:
+            creds_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
+            if creds_path:
+                cred = fb_credentials.Certificate(creds_path)
+                firebase_admin.initialize_app(cred)
+            else:
+                firebase_admin.initialize_app()
+
+        # Verify the Firebase ID token
+        decoded_token = auth.verify_id_token(token)
+        logger.info(f"✅ Firebase token verified for user: {decoded_token.get('uid')}")
+        return decoded_token
+
+    except Exception as e:
+        logger.error(f"❌ Firebase token verification failed: {str(e)}")
+        raise HTTPException(status_code=401, detail="Invalid authentication token")
+
+
+async def get_current_user(token_data: dict = Depends(verify_supabase_token)) -> dict:
+    """
+    Extract current user information from verified Supabase token.
 
     Args:
-        token_data: Decoded token from verify_firebase_token
+        token_data: Decoded token from verify_supabase_token
 
     Returns:
         dict: User information including uid, email, etc.
     """
     return {
-        "uid": token_data.get("uid"),
+        "uid": token_data.get("sub"),
         "email": token_data.get("email"),
-        "name": token_data.get("name"),
-        "picture": token_data.get("picture"),
-        "email_verified": token_data.get("email_verified", False),
+        "name": token_data.get("user_metadata", {}).get("full_name"),
+        "picture": token_data.get("user_metadata", {}).get("avatar_url"),
+        "email_verified": token_data.get("email_confirmed_at") is not None,
     }
 
 
@@ -159,6 +166,11 @@ async def optional_auth(
         return None
 
     try:
-        return await verify_firebase_token(credentials)
+        return await verify_supabase_token(credentials)
     except HTTPException:
         return None
+
+
+def is_supabase_configured() -> bool:
+    """Check if Supabase is properly configured"""
+    return bool(SUPABASE_URL and SUPABASE_ANON_KEY)

@@ -1,6 +1,7 @@
 """
 Configuration settings for the StudySync AI backend.
 """
+
 import os
 from typing import List
 
@@ -8,7 +9,9 @@ from typing import List
 MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "50"))  # 50 MB default
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 MAX_FILES_PER_REQUEST = int(os.getenv("MAX_FILES_PER_REQUEST", "10"))  # 10 files max
-MAX_DOCUMENTS_PER_USER = int(os.getenv("MAX_DOCUMENTS_PER_USER", "100"))  # 100 docs per user
+MAX_DOCUMENTS_PER_USER = int(
+    os.getenv("MAX_DOCUMENTS_PER_USER", "100")
+)  # 100 docs per user
 
 # Supported file types
 SUPPORTED_FILE_TYPES = [
@@ -30,8 +33,17 @@ MIN_QUERY_LENGTH = int(os.getenv("MIN_QUERY_LENGTH", "1"))
 BACKEND_PORT = int(os.getenv("PORT", "8000"))
 BACKEND_HOST = os.getenv("HOST", "0.0.0.0")
 
+# Supabase Configuration
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+
 # AI Model Retry Configuration
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "3"))  # Max retry attempts for model errors
-INITIAL_RETRY_DELAY = int(os.getenv("INITIAL_RETRY_DELAY", "2"))  # Initial delay in seconds
+INITIAL_RETRY_DELAY = int(
+    os.getenv("INITIAL_RETRY_DELAY", "2")
+)  # Initial delay in seconds
 MAX_RETRY_DELAY = int(os.getenv("MAX_RETRY_DELAY", "10"))  # Maximum delay in seconds
-FALLBACK_MODEL = os.getenv("FALLBACK_MODEL", "gemini-1.5-pro")  # Fallback model when primary fails
+FALLBACK_MODEL = os.getenv(
+    "FALLBACK_MODEL", "gemini-1.5-pro"
+)  # Fallback model when primary fails

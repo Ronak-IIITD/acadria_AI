@@ -1,38 +1,50 @@
 import { useState, useEffect } from 'react';
-import { auth } from '../lib/firebase';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { auth as firebaseAuth, onAuthStateChanged } from 'firebase/auth';
+import { supabase, isSupabaseConfigured, auth as supabaseAuth } from '../lib/supabase';
+import type { User } from '@supabase/supabase-js';
 import LandingPage from './LandingPage';
 import Login from './Login';
 import AdminLogin from './AdminLogin';
 import Onboarding from './Onboarding';
 import Dashboard from './Dashboard';
-import type { User } from '../types';
+import type { User as AppUser } from '../types';
 
 interface AuthGateProps {
   children?: React.ReactNode;
 }
 
+type AuthProvider = 'supabase' | 'firebase' | null;
+
 const AuthGate = ({ children }: AuthGateProps) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<any>(null);
+  const [supabaseUser, setSupabaseUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminSession, setAdminSession] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<'landing' | 'login' | 'admin' | 'onboarding' | 'dashboard'>('landing');
+  const [authProvider, setAuthProvider] = useState<AuthProvider>(null);
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
-  // Force light mode on landing page ONLY
+  const getSupabaseSession = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      return session;
+    } catch (error) {
+      console.error('Error getting Supabase session:', error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     const root = window.document.documentElement;
     if (currentView === 'landing' || showLogin) {
-      // Landing page and login should always be light mode
       root.classList.remove('dark');
       root.classList.add('light');
     } else {
-      // Restore user's theme preference for authenticated views
       const savedTheme = localStorage.getItem('theme') || 'light';
       root.classList.remove('light', 'dark');
       root.classList.add(savedTheme);
@@ -40,65 +52,103 @@ const AuthGate = ({ children }: AuthGateProps) => {
   }, [currentView, showLogin]);
 
   useEffect(() => {
-    // Check for admin session in localStorage
-    const storedAdminSession = localStorage.getItem('admin_session');
-    if (storedAdminSession) {
-      verifyAdminSession(storedAdminSession);
-    }
+    const initAuth = async () => {
+      const storedAdminSession = localStorage.getItem('admin_session');
+      if (storedAdminSession) {
+        verifyAdminSession(storedAdminSession);
+      }
 
-    // Firebase auth listener
-    if (auth && typeof auth.onAuthStateChanged === 'function') {
-      const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-        if (firebaseUser) {
-          setFirebaseUser(firebaseUser);
-          
-          // Check if user needs onboarding (no display name = new user)
-          const isNewUser = !firebaseUser.displayName;
-          setNeedsOnboarding(isNewUser);
-          
-          const user: User = {
-            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
-            email: firebaseUser.email || '',
-            photoURL: firebaseUser.photoURL || undefined,
-            uid: firebaseUser.uid,
+      const supabaseConfigured = isSupabaseConfigured();
+      
+      if (supabaseConfigured) {
+        console.log('🔐 Using Supabase Auth');
+        setAuthProvider('supabase');
+        
+        const session = await getSupabaseSession();
+        
+        if (session) {
+          setSupabaseUser(session.user);
+          const appUser: AppUser = {
+            name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+            email: session.user.email || '',
+            photoURL: session.user.user_metadata?.avatar_url || undefined,
+            uid: session.user.id,
             isAdmin: false,
             plan: 'free'
           };
-          
-          setUser(user);
-          
-          if (isNewUser) {
-            setCurrentView('onboarding');
-          } else {
-            setCurrentView('dashboard');
-          }
+          setUser(appUser);
+          setCurrentView('dashboard');
         } else {
-          setUser(null);
-          setFirebaseUser(null);
-          setNeedsOnboarding(false);
-          // Keep showing landing page if no user
-          if (currentView !== 'admin') {
+          setCurrentView('landing');
+        }
+        setAuthLoading(false);
+        
+        const { data: { subscription } } = supabase.auth.onAuthStateChanged(async (event: string, session: any) => {
+          if (session) {
+            setSupabaseUser(session.user);
+            const appUser: AppUser = {
+              name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+              email: session.user.email || '',
+              photoURL: session.user.user_metadata?.avatar_url || undefined,
+              uid: session.user.id,
+              isAdmin: false,
+              plan: 'free'
+            };
+            setUser(appUser);
+            setCurrentView('dashboard');
+          } else {
+            setSupabaseUser(null);
+            setUser(null);
             setCurrentView('landing');
           }
-        }
-        
-        setAuthLoading(false);
-      });
+          setAuthLoading(false);
+        });
 
-      return () => unsubscribe();
-    } else {
-      // Firebase not available - should not happen in production
-      console.error('❌ Firebase Auth not available');
-      setAuthLoading(false);
-    }
+        return () => subscription.unsubscribe();
+      } else {
+        console.log('🔐 Using Firebase Auth');
+        setAuthProvider('firebase');
+        
+        const unsubscribe = onAuthStateChanged(firebaseAuth as any, (firebaseUser: any) => {
+          if (firebaseUser) {
+            setFirebaseUser(firebaseUser);
+            const isNewUser = !firebaseUser.displayName;
+            setNeedsOnboarding(isNewUser);
+            
+            const appUser: AppUser = {
+              name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+              email: firebaseUser.email || '',
+              photoURL: firebaseUser.photoURL || undefined,
+              uid: firebaseUser.uid,
+              isAdmin: false,
+              plan: 'free'
+            };
+            
+            setUser(appUser);
+            setCurrentView(isNewUser ? 'onboarding' : 'dashboard');
+          } else {
+            setUser(null);
+            setFirebaseUser(null);
+            setNeedsOnboarding(false);
+            if (currentView !== 'admin') {
+              setCurrentView('landing');
+            }
+          }
+          
+          setAuthLoading(false);
+        });
+
+        return () => unsubscribe();
+      }
+    };
+
+    initAuth();
   }, []);
 
   const verifyAdminSession = async (sessionToken: string) => {
     try {
       const response = await fetch(`${BACKEND_URL}/api/admin/verify`, {
-        headers: {
-          'Authorization': `Bearer ${sessionToken}`
-        }
+        headers: { 'Authorization': `Bearer ${sessionToken}` }
       });
       
       if (response.ok) {
@@ -118,7 +168,6 @@ const AuthGate = ({ children }: AuthGateProps) => {
           setAuthLoading(false);
         }
       } else {
-        // Invalid session, clear it
         localStorage.removeItem('admin_session');
       }
     } catch (error) {
@@ -164,9 +213,7 @@ const AuthGate = ({ children }: AuthGateProps) => {
       try {
         await fetch(`${BACKEND_URL}/api/admin/logout`, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${adminSession}`
-          }
+          headers: { 'Authorization': `Bearer ${adminSession}` }
         });
       } catch (error) {
         console.error('Admin logout error:', error);
@@ -190,8 +237,10 @@ const AuthGate = ({ children }: AuthGateProps) => {
 
   const handleLogout = async () => {
     try {
-      if (auth && typeof auth.signOut === 'function') {
-        await auth.signOut();
+      if (authProvider === 'supabase') {
+        await supabase.auth.signOut();
+      } else if (firebaseAuth) {
+        await (firebaseAuth as any).signOut();
       }
       setUser(null);
       setCurrentView('landing');
@@ -200,7 +249,6 @@ const AuthGate = ({ children }: AuthGateProps) => {
     }
   };
 
-  // Show loading spinner
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -212,7 +260,6 @@ const AuthGate = ({ children }: AuthGateProps) => {
     );
   }
 
-  // Show Admin Login
   if (showAdminLogin) {
     return (
       <AdminLogin 
@@ -225,7 +272,6 @@ const AuthGate = ({ children }: AuthGateProps) => {
     );
   }
 
-  // Show Regular Login Modal
   if (showLogin) {
     return (
       <div className="min-h-screen bg-white">
@@ -244,10 +290,7 @@ const AuthGate = ({ children }: AuthGateProps) => {
           </button>
         </div>
         <Login 
-          onLogin={() => {
-            // Firebase auth state change will handle this automatically
-            setShowLogin(false);
-          }}
+          onLogin={() => setShowLogin(false)}
           onClose={() => {
             setShowLogin(false);
             setCurrentView('landing');
@@ -257,7 +300,6 @@ const AuthGate = ({ children }: AuthGateProps) => {
     );
   }
 
-  // Show Landing Page (no forced login)
   if (currentView === 'landing') {
     return (
       <LandingPage 
@@ -270,22 +312,19 @@ const AuthGate = ({ children }: AuthGateProps) => {
     );
   }
 
-  // Show Onboarding for new users
-  if (currentView === 'onboarding' && firebaseUser) {
+  if (currentView === 'onboarding' && (firebaseUser || supabaseUser)) {
     return (
       <Onboarding 
-        user={firebaseUser}
+        user={supabaseUser || firebaseUser}
         onComplete={handleOnboardingComplete}
       />
     );
   }
 
-  // Show Dashboard for authenticated users (regular or admin)
   if (currentView === 'dashboard' && user) {
     return <Dashboard />;
   }
 
-  // Fallback to landing
   return (
     <LandingPage 
       onGetStarted={handleGetStarted}

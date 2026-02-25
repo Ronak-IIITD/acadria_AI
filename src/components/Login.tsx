@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth, googleProvider } from '../lib/firebase';
+import { auth as firebaseAuth, googleProvider } from '../lib/firebase';
+import { supabase, isSupabaseConfigured, auth as supabaseAuth } from '../lib/supabase';
 import AIBookIcon from './icons/AIBookIcon';
 import type { User } from '../types';
 
@@ -17,20 +18,41 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const useSupabase = isSupabaseConfigured();
+
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError('');
 
-    // Check if Firebase is configured
-    if (!auth || !googleProvider) {
-      setError('Firebase authentication is not configured. Please set up Firebase credentials in .env.local file.');
+    if (useSupabase) {
+      try {
+        console.log('🔑 Attempting Supabase OAuth sign-in...');
+        const { error } = await supabaseAuth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: `${window.location.origin}/auth/callback`,
+          },
+        });
+        
+        if (error) throw error;
+        console.log('✅ OAuth redirect initiated');
+      } catch (err: any) {
+        console.error('❌ Supabase OAuth error:', err);
+        setError(err.message || 'Failed to sign in with Google');
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (!firebaseAuth || !googleProvider) {
+      setError('Authentication is not configured. Please set up credentials.');
       setLoading(false);
       return;
     }
 
     try {
-      console.log('🔑 Attempting Google sign-in with popup...');
-      const result = await signInWithPopup(auth, googleProvider);
+      console.log('🔑 Attempting Firebase Google sign-in with popup...');
+      const result = await signInWithPopup(firebaseAuth, googleProvider);
       console.log('✅ Google sign-in successful:', result.user.email);
       
       const user: User = {
@@ -38,43 +60,24 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
         email: result.user.email || '',
       };
       
-      // Call onLogin callback
       onLogin(user);
       setLoading(false);
-    } catch (error: any) {
-      console.error('❌ Google sign-in error:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
+    } catch (err: any) {
+      console.error('❌ Google sign-in error:', err);
+      const errorCode = (err as any)?.code || '';
+      const errorMessage = (err as any)?.message || '';
 
-      // Handle specific error cases
-      if (error.code === 'auth/popup-blocked') {
-        setError(
-          'Popup was blocked by your browser. Please allow popups for this site and try again.\n\n' +
-          'Or try using a different browser.'
-        );
-      } else if (error.code === 'auth/popup-closed-by-user') {
+      if (errorCode === 'auth/popup-blocked') {
+        setError('Popup was blocked by your browser. Please allow popups for this site.');
+      } else if (errorCode === 'auth/popup-closed-by-user') {
         setError('Sign-in was cancelled. Please try again.');
-      } else if (error.code === 'auth/cancelled-popup-request') {
-        // User closed popup, just clear loading state
-        console.log('User cancelled popup');
-      } else if (error.code === 'auth/unauthorized-domain') {
+      } else if (errorCode === 'auth/unauthorized-domain') {
         const currentDomain = window.location.hostname;
-        console.error('❌ Unauthorized domain:', currentDomain);
-        setError(
-          `Domain "${currentDomain}" is not authorized.\n\n` +
-          `To fix this:\n` +
-          `1. Go to Firebase Console → Authentication → Settings\n` +
-          `2. Add "${currentDomain}" to Authorized domains\n` +
-          `3. If using localhost, ensure both "localhost" and "127.0.0.1" are added`
-        );
-      } else if (error.code === 'auth/network-request-failed') {
-        setError('Network error. Please check your internet connection and try again.');
-      } else if (error.code === 'auth/configuration-not-found') {
-        setError('Firebase configuration error. Please ensure Google Sign-In is enabled in Firebase Console.');
-      } else if (error.code === 'auth/invalid-api-key') {
-        setError('Invalid Firebase API key. Please check your environment variables.');
+        setError(`Domain "${currentDomain}" is not authorized. Add it to your auth provider.`);
+      } else if (errorCode === 'auth/network-request-failed') {
+        setError('Network error. Please check your internet connection.');
       } else {
-        setError(error.message || 'Failed to sign in with Google. Please try again.');
+        setError(errorMessage || 'Failed to sign in with Google. Please try again.');
       }
 
       setLoading(false);
@@ -86,9 +89,48 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
     setLoading(true);
     setError('');
 
-    // Check if Firebase is configured
-    if (!auth || typeof signInWithEmailAndPassword !== 'function') {
-      setError('Firebase authentication is not configured. Please set up Firebase credentials in .env.local file.');
+    if (useSupabase) {
+      try {
+        if (isSignUp) {
+          const { data, error } = await supabaseAuth.signUp({
+            email,
+            password,
+            options: {
+              emailRedirectTo: `${window.location.origin}/auth/callback`,
+            },
+          });
+          if (error) throw error;
+          
+          if (data.user && !data.session) {
+            setError('Please check your email to confirm your account!');
+            setLoading(false);
+            return;
+          }
+        } else {
+          const { error } = await supabaseAuth.signInWithPassword({
+            email,
+            password,
+          });
+          if (error) throw error;
+        }
+        
+        const { data: userData } = await supabaseAuth.getUser();
+        const appUser: User = {
+          name: userData?.user?.user_metadata?.full_name || email.split('@')[0],
+          email: userData?.user?.email || email,
+        };
+        onLogin(appUser);
+      } catch (err: any) {
+        console.error('Supabase email auth error:', err);
+        setError(err.message || 'Authentication failed');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (!firebaseAuth || typeof signInWithEmailAndPassword !== 'function') {
+      setError('Firebase authentication is not configured.');
       setLoading(false);
       return;
     }
@@ -96,9 +138,9 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
     try {
       let result;
       if (isSignUp) {
-        result = await createUserWithEmailAndPassword(auth, email, password);
+        result = await createUserWithEmailAndPassword(firebaseAuth, email, password);
       } else {
-        result = await signInWithEmailAndPassword(auth, email, password);
+        result = await signInWithEmailAndPassword(firebaseAuth, email, password);
       }
       
       const user: User = {
@@ -106,9 +148,9 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
         email: result.user.email || email,
       };
       onLogin(user);
-    } catch (error: any) {
-      console.error('Email auth error:', error);
-      setError(error.message || 'Authentication failed');
+    } catch (err: any) {
+      console.error('Email auth error:', err);
+      setError((err as any)?.message || 'Authentication failed');
     } finally {
       setLoading(false);
     }
@@ -124,7 +166,6 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
         aria-modal="true"
         role="dialog"
     >
-      {/* Close button - Top Right */}
       <button 
           onClick={onClose} 
           className="absolute top-8 right-8 transition-opacity hover:opacity-70"
@@ -138,7 +179,6 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
 
       <div className="relative text-center max-w-md w-full px-6">
 
-        {/* Logo */}
         <div className="mb-8">
           <div 
             className="inline-flex p-4 rounded-2xl mb-4"
@@ -148,15 +188,15 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
           </div>
         </div>
         
-        {/* Header */}
         <h2 className="text-3xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>
           {isSignUp ? 'Create Account' : 'Welcome back'}
         </h2>
         <p className="mb-8" style={{ color: 'var(--color-text-secondary)' }}>
-          Let's continue your learning journey.
+          {useSupabase 
+            ? 'Sign in to continue your learning journey with AI-powered study tools.'
+            : 'Let\'s continue your learning journey.'}
         </p>
         
-        {/* Google Sign In */}
         <button
           onClick={handleGoogleSignIn}
           disabled={loading}
@@ -177,7 +217,6 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
           Continue with Google
         </button>
 
-        {/* Divider */}
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t" style={{ borderColor: 'var(--color-border-light)' }}></div>
@@ -189,7 +228,6 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
           </div>
         </div>
 
-        {/* Email/Password Form */}
         <form onSubmit={handleEmailAuth} className="space-y-4">
           <div>
             <input
@@ -279,13 +317,13 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
               boxShadow: '0 4px 12px rgba(53, 208, 195, 0.3)',
             }}
           >
-            {loading ? 'Please wait...' : 'Sign In'}
+            {loading ? 'Please wait...' : (isSignUp ? 'Create Account' : 'Sign In')}
           </button>
         </form>
 
         <div className="mt-6">
           <p style={{ color: 'var(--color-text-muted)' }}>
-            Don't have an account?{' '}
+            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
             <button
               onClick={() => {
                 setIsSignUp(!isSignUp);
@@ -294,7 +332,7 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
               className="font-medium transition-opacity hover:opacity-70"
               style={{ color: 'var(--color-text-primary)' }}
             >
-              Sign up
+              {isSignUp ? 'Sign in' : 'Sign up'}
             </button>
           </p>
         </div>
