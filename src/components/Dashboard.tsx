@@ -12,8 +12,10 @@ import QuizGenerator from './QuizGenerator';
 import QuizTaker from './QuizTaker';
 import SummaryViewer from './SummaryViewer';
 import KeyTakeawaysPanel from './KeyTakeawaysPanel';
+import SplitView from './SplitView';
 import { AiModel as AiModelEnum } from '../types';
 import { Flashcard, Quiz, Summary } from '@/domain/studyTypes';
+import { Columns2, Maximize2, Minimize2 } from 'lucide-react';
 import { generateQuiz, generateSummary, generateKeyTakeaways } from '@/services/studyToolsService';
 
 const FLASHCARDS_STORAGE_KEY = 'studysync_flashcards';
@@ -48,6 +50,7 @@ const Dashboard: React.FC = () => {
   // UI state
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [levelUpEnabled, setLevelUpEnabled] = useState(false);
+  const [isSplitView, setIsSplitView] = useState(false);
   
   // Resizable panel state
   const [pdfWidth, setPdfWidth] = useState(50); // percentage when viewing file
@@ -335,7 +338,65 @@ const Dashboard: React.FC = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* PDF Viewer (when file is being viewed) */}
-        {viewingFile && !isMobile && (
+        {viewingFile && !isMobile && isSplitView && (
+          <SplitView
+            initialLeftWidth={50}
+            minLeftWidth={30}
+            maxLeftWidth={70}
+            leftPanel={
+              <div 
+                className="flex flex-col h-full overflow-hidden"
+                style={{ 
+                  background: 'var(--color-surface-glass)',
+                  backdropFilter: 'blur(28px) saturate(120%)',
+                  WebkitBackdropFilter: 'blur(28px) saturate(120%)',
+                }}
+              >
+                <PdfViewer
+                  file={viewingFile}
+                  onClose={() => setViewingFile(null)}
+                  onAskAboutSelection={handleAskAboutSelection}
+                  isInline={true}
+                  isSplitView={true}
+                  onToggleSplitView={() => setIsSplitView(false)}
+                />
+              </div>
+            }
+            rightPanel={
+              <div 
+                className="flex flex-col h-full" 
+                style={{ 
+                  background: 'var(--color-surface-glass)',
+                  backdropFilter: 'blur(28px) saturate(120%)',
+                  WebkitBackdropFilter: 'blur(28px) saturate(120%)',
+                }}
+              >
+                <CalmChatWindow
+                  files={selectedFiles}
+                  model={selectedModel}
+                  onModelChange={setSelectedModel}
+                  levelUpEnabled={levelUpEnabled}
+                  onToggleLevelUp={setLevelUpEnabled}
+                  pendingQuestion={pendingQuestion}
+                  onQuestionSent={() => setPendingQuestion('')}
+                  onQuizClick={() => {
+                    if (selectedFiles.length > 0) {
+                      handleGenerateQuiz(selectedFiles[0]);
+                    }
+                  }}
+                  onFlashcardsClick={() => {
+                    if (selectedFiles.length > 0) {
+                      handleGenerateFlashcards(selectedFiles[0]);
+                    }
+                  }}
+                />
+              </div>
+            }
+          />
+        )}
+
+        {/* Legacy PDF + Chat Layout (when not in split view) */}
+        {viewingFile && !isMobile && !isSplitView && (
           <>
             <div 
               className="flex flex-col h-full overflow-hidden" 
@@ -348,6 +409,20 @@ const Dashboard: React.FC = () => {
                 boxShadow: 'var(--shadow-sm)'
               }}
             >
+              {/* Split View Toggle Button */}
+              <div className="absolute top-14 right-4 z-20">
+                <button
+                  onClick={() => setIsSplitView(true)}
+                  className="p-2 rounded-lg border shadow-lg hover:scale-105 transition-transform"
+                  style={{
+                    background: 'var(--color-bg-elevated)',
+                    borderColor: 'var(--color-border-light)'
+                  }}
+                  title="Enter split view"
+                >
+                  <Columns2 className="w-4 h-4" style={{ color: 'var(--color-text-secondary)' }} />
+                </button>
+              </div>
               <PdfViewer
                 file={viewingFile}
                 onClose={() => setViewingFile(null)}
@@ -367,37 +442,39 @@ const Dashboard: React.FC = () => {
           </>
         )}
         
-        {/* Chat Window */}
-        <div 
-          className="flex-1 flex flex-col" 
-          style={{ 
-            minWidth: 0,
-            background: 'var(--color-surface-glass)',
-            backdropFilter: 'blur(28px) saturate(120%)',
-            WebkitBackdropFilter: 'blur(28px) saturate(120%)',
-            boxShadow: 'var(--shadow-sm)'
-          }}
-        >
-          <CalmChatWindow
-            files={selectedFiles}
-            model={selectedModel}
-            onModelChange={setSelectedModel}
-            levelUpEnabled={levelUpEnabled}
-            onToggleLevelUp={setLevelUpEnabled}
-            pendingQuestion={pendingQuestion}
-            onQuestionSent={() => setPendingQuestion('')}
-            onQuizClick={() => {
-              if (selectedFiles.length > 0) {
-                handleGenerateQuiz(selectedFiles[0]);
-              }
+        {/* Chat Window (when no file is being viewed OR in split view) */}
+        {(!viewingFile || (viewingFile && isSplitView)) && (
+          <div 
+            className="flex-1 flex flex-col" 
+            style={{ 
+              minWidth: 0,
+              background: 'var(--color-surface-glass)',
+              backdropFilter: 'blur(28px) saturate(120%)',
+              WebkitBackdropFilter: 'blur(28px) saturate(120%)',
+              boxShadow: 'var(--shadow-sm)'
             }}
-            onFlashcardsClick={() => {
-              if (selectedFiles.length > 0) {
-                handleGenerateFlashcards(selectedFiles[0]);
-              }
-            }}
-          />
-        </div>
+          >
+            <CalmChatWindow
+              files={selectedFiles}
+              model={selectedModel}
+              onModelChange={setSelectedModel}
+              levelUpEnabled={levelUpEnabled}
+              onToggleLevelUp={setLevelUpEnabled}
+              pendingQuestion={pendingQuestion}
+              onQuestionSent={() => setPendingQuestion('')}
+              onQuizClick={() => {
+                if (selectedFiles.length > 0) {
+                  handleGenerateQuiz(selectedFiles[0]);
+                }
+              }}
+              onFlashcardsClick={() => {
+                if (selectedFiles.length > 0) {
+                  handleGenerateFlashcards(selectedFiles[0]);
+                }
+              }}
+            />
+          </div>
+        )}
       </div>
       
       {generatingFor && (

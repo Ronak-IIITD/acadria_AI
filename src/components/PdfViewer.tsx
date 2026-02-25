@@ -1,11 +1,18 @@
 import { useState, useRef, useEffect } from 'react';
 import type { StudyFile } from '../types';
+import { 
+  ChevronLeft, ChevronRight, ZoomIn, ZoomOut, 
+  MousePointer2, Pencil, Highlighter, Type, Eraser,
+  X, RotateCcw, Download, Maximize2, Minimize2
+} from 'lucide-react';
 
 interface PdfViewerProps {
   file: StudyFile;
   onClose: () => void;
   onAskAboutSelection: (selectedText: string) => void;
   isInline?: boolean;
+  isSplitView?: boolean;
+  onToggleSplitView?: () => void;
 }
 
 const ZOOM_LEVELS = [
@@ -42,7 +49,7 @@ interface Annotation {
 
 type ToolMode = 'select' | 'highlight' | 'text' | 'draw' | 'eraser';
 
-const PdfViewer = ({ file, onClose, onAskAboutSelection, isInline = false }: PdfViewerProps) => {
+const PdfViewer = ({ file, onClose, onAskAboutSelection, isInline = false, isSplitView = false, onToggleSplitView }: PdfViewerProps) => {
   const [numPages, setNumPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
@@ -544,16 +551,43 @@ const PdfViewer = ({ file, onClose, onAskAboutSelection, isInline = false }: Pdf
           backdropFilter: 'blur(10px)'
         }}>
           <div className="flex items-center gap-3 flex-shrink-0">
-            <h2 className="text-sm font-bold truncate max-w-[150px] md:max-w-[200px]" style={{ color: '#1a1a1a' }}>
+            <h2 className="text-sm font-bold truncate max-w-[150px] md:max-w-[200px]" style={{ color: 'var(--color-text-primary)' }}>
               {file.name}
             </h2>
+            {!isInline && (
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-lg hover:bg-black/10 transition-colors"
+                title="Close (Esc)"
+              >
+                <X className="w-4 h-4" style={{ color: 'var(--color-text-secondary)' }} />
+              </button>
+            )}
           </div>
           
           {/* Compact Toolbar */}
           <div className="flex items-center gap-1 flex-shrink-0">
+            {/* Split View Toggle */}
+            {isInline && onToggleSplitView && (
+              <button
+                type="button"
+                onClick={onToggleSplitView}
+                className="h-8 px-3 flex items-center gap-2 rounded-xl border transition-colors hover:bg-black/5 active:bg-black/10"
+                style={{
+                  background: 'var(--color-bg-secondary)',
+                  borderColor: 'var(--color-border-light)',
+                  color: 'var(--color-text-primary)'
+                }}
+                title={isSplitView ? "Exit split view" : "Split view"}
+              >
+                {isSplitView ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                <span className="text-xs font-medium hidden sm:inline">{isSplitView ? 'Exit Split' : 'Split'}</span>
+              </button>
+            )}
+
             {/* Page Navigation */}
             <div
-              className="hidden sm:flex items-center overflow-hidden rounded-xl border text-black"
+              className="hidden sm:flex items-center overflow-hidden rounded-xl border"
               style={{
                 background: 'var(--color-bg-secondary)',
                 borderColor: 'var(--color-border-light)'
@@ -565,22 +599,21 @@ const PdfViewer = ({ file, onClose, onAskAboutSelection, isInline = false }: Pdf
                 disabled={currentPage === 1}
                 className="h-8 w-8 flex items-center justify-center transition-colors border-r hover:bg-black/5 active:bg-black/10 disabled:opacity-30 disabled:hover:bg-transparent"
                 style={{ borderColor: 'var(--color-border-light)' }}
-                title="Previous"
+                title="Previous (←)"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
+                <ChevronLeft className="w-4 h-4" />
               </button>
-              <div className="flex items-center gap-2 px-3 py-1">
+              <div className="flex items-center gap-1 px-2 py-1">
                 <input
                   type="number"
                   min={1}
                   max={numPages}
                   value={currentPage}
                   onChange={(e) => handlePageInputChange(e.target.value)}
-                  className="w-12 bg-transparent text-center text-sm font-semibold text-black outline-none appearance-none"
+                  className="w-12 bg-transparent text-center text-sm font-semibold outline-none appearance-none"
+                  style={{ color: 'var(--color-text-primary)' }}
                 />
-                <span className="text-xs font-medium text-black/60">/ {numPages}</span>
+                <span className="text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>/ {numPages}</span>
               </div>
               <button
                 type="button"
@@ -588,11 +621,9 @@ const PdfViewer = ({ file, onClose, onAskAboutSelection, isInline = false }: Pdf
                 disabled={currentPage === numPages}
                 className="h-8 w-8 flex items-center justify-center transition-colors border-l hover:bg-black/5 active:bg-black/10 disabled:opacity-30 disabled:hover:bg-transparent"
                 style={{ borderColor: 'var(--color-border-light)' }}
-                title="Next"
+                title="Next (→)"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
 
@@ -602,38 +633,36 @@ const PdfViewer = ({ file, onClose, onAskAboutSelection, isInline = false }: Pdf
                 type="button"
                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
-                className="h-8 w-8 flex items-center justify-center rounded-lg border transition-colors text-black hover:bg-black/5 active:bg-black/10 disabled:opacity-30 disabled:hover:bg-transparent"
+                className="h-8 w-8 flex items-center justify-center rounded-lg border transition-colors hover:bg-black/5 active:bg-black/10 disabled:opacity-30 disabled:hover:bg-transparent"
                 style={{
                   background: 'var(--color-bg-secondary)',
-                  borderColor: 'var(--color-border-light)'
+                  borderColor: 'var(--color-border-light)',
+                  color: 'var(--color-text-primary)'
                 }}
                 title="Previous"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
+                <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="px-2 text-xs font-semibold text-black">{currentPage}/{numPages}</span>
+              <span className="px-2 text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>{currentPage}/{numPages}</span>
               <button
                 type="button"
                 onClick={() => setCurrentPage(Math.min(numPages, currentPage + 1))}
                 disabled={currentPage === numPages}
-                className="h-8 w-8 flex items-center justify-center rounded-lg border transition-colors text-black hover:bg-black/5 active:bg-black/10 disabled:opacity-30 disabled:hover:bg-transparent"
+                className="h-8 w-8 flex items-center justify-center rounded-lg border transition-colors hover:bg-black/5 active:bg-black/10 disabled:opacity-30 disabled:hover:bg-transparent"
                 style={{
                   background: 'var(--color-bg-secondary)',
-                  borderColor: 'var(--color-border-light)'
+                  borderColor: 'var(--color-border-light)',
+                  color: 'var(--color-text-primary)'
                 }}
                 title="Next"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
 
             {/* Zoom Controls */}
             <div
-              className="hidden md:flex items-center overflow-hidden rounded-xl border text-black"
+              className="hidden md:flex items-center overflow-hidden rounded-xl border"
               style={{
                 background: 'var(--color-bg-secondary)',
                 borderColor: 'var(--color-border-light)'
@@ -643,19 +672,18 @@ const PdfViewer = ({ file, onClose, onAskAboutSelection, isInline = false }: Pdf
                 type="button"
                 onClick={handleZoomOut}
                 className="h-8 w-8 flex items-center justify-center transition-colors border-r hover:bg-black/5 active:bg-black/10"
-                style={{ borderColor: 'var(--color-border-light)' }}
-                title="Zoom out"
+                style={{ borderColor: 'var(--color-border-light)', color: 'var(--color-text-primary)' }}
+                title="Zoom out (-)"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
-                </svg>
+                <ZoomOut className="w-4 h-4" />
               </button>
               <select
                 value={Math.round(scale * 100).toString()}
                 onChange={(e) => handleZoomSelect(e.target.value)}
-                className="bg-transparent px-3 text-sm font-semibold text-black outline-none cursor-pointer"
+                className="bg-transparent px-2 text-sm font-semibold outline-none cursor-pointer"
+                style={{ color: 'var(--color-text-primary)' }}
               >
-                {ZOOM_LEVELS.map(level => (
+                {ZOOM_LEVELS.filter((_, i) => i % 2 === 0).map(level => (
                   <option key={level} value={level.toString()}>{level}%</option>
                 ))}
               </select>
@@ -663,54 +691,28 @@ const PdfViewer = ({ file, onClose, onAskAboutSelection, isInline = false }: Pdf
                 type="button"
                 onClick={handleZoomIn}
                 className="h-8 w-8 flex items-center justify-center transition-colors border-l hover:bg-black/5 active:bg-black/10"
-                style={{ borderColor: 'var(--color-border-light)' }}
-                title="Zoom in"
+                style={{ borderColor: 'var(--color-border-light)', color: 'var(--color-text-primary)' }}
+                title="Zoom in (+)"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                </svg>
+                <ZoomIn className="w-4 h-4" />
               </button>
             </div>
 
             {/* Annotation Tools */}
             <div
-              className="hidden lg:flex items-center gap-1 rounded-xl border px-1 text-black"
+              className="hidden lg:flex items-center gap-1 rounded-xl border px-1"
               style={{
                 background: 'var(--color-bg-secondary)',
                 borderColor: 'var(--color-border-light)'
               }}
             >
-              {(
-                [
-                  { id: 'select', icon: (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
-                    </svg>
-                  ) },
-                  { id: 'draw', icon: (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  ) },
-                  { id: 'highlight', icon: (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6M9 16h6M10 8h4M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                  ) },
-                  { id: 'text', icon: (
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <text x="50%" y="70%" textAnchor="middle" fontSize="18" fontWeight="bold" fill="currentColor" stroke="none">T</text>
-                    </svg>
-                  ) },
-                  { id: 'eraser', icon: (
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 3.5l4 4L9 19H5v-4L16.5 3.5z" opacity="0.6" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 21h18" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8l4 4" />
-                    </svg>
-                  ) }
-                ] as const
-              ).map(tool => (
+              {([
+                { id: 'select', icon: <MousePointer2 className="w-4 h-4" />, label: 'Select' },
+                { id: 'draw', icon: <Pencil className="w-4 h-4" />, label: 'Draw' },
+                { id: 'highlight', icon: <Highlighter className="w-4 h-4" />, label: 'Highlight' },
+                { id: 'text', icon: <Type className="w-4 h-4" />, label: 'Text' },
+                { id: 'eraser', icon: <Eraser className="w-4 h-4" />, label: 'Eraser' }
+              ] as const).map(tool => (
                 <button
                   key={tool.id}
                   type="button"
@@ -718,15 +720,16 @@ const PdfViewer = ({ file, onClose, onAskAboutSelection, isInline = false }: Pdf
                   className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors hover:bg-black/5 active:bg-black/10 ${
                     toolMode === tool.id ? 'bg-black/10 shadow-inner' : ''
                   }`}
+                  style={{ color: toolMode === tool.id ? '#35d0c3' : 'var(--color-text-primary)' }}
                   aria-pressed={toolMode === tool.id}
-                  title={tool.id.charAt(0).toUpperCase() + tool.id.slice(1)}
+                  title={tool.label}
                 >
                   {tool.icon}
                 </button>
               ))}
               <label
                 className="relative h-8 w-8 flex items-center justify-center rounded-lg transition-colors hover:bg-black/5 cursor-pointer"
-                title="Color"
+                title="Highlight color"
               >
                 <input
                   type="color"
@@ -743,9 +746,6 @@ const PdfViewer = ({ file, onClose, onAskAboutSelection, isInline = false }: Pdf
               {/* Opacity Slider for Highlight */}
               {toolMode === 'highlight' && (
                 <div className="flex items-center gap-2 px-2 border-l" style={{ borderColor: 'var(--color-border-light)' }}>
-                  <svg className="w-3 h-3 text-black/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                  </svg>
                   <input
                     type="range"
                     min="10"
@@ -753,15 +753,12 @@ const PdfViewer = ({ file, onClose, onAskAboutSelection, isInline = false }: Pdf
                     step="5"
                     value={highlightOpacity * 100}
                     onChange={(e) => setHighlightOpacity(parseInt(e.target.value) / 100)}
-                    className="w-16 h-1 bg-black/20 rounded-lg appearance-none cursor-pointer"
+                    className="w-16 h-1 rounded-lg appearance-none cursor-pointer"
                     style={{
                       background: `linear-gradient(to right, ${highlightColor}33 0%, ${highlightColor} 100%)`
                     }}
                     title={`Opacity: ${Math.round(highlightOpacity * 100)}%`}
                   />
-                  <svg className="w-3 h-3 text-black/60" fill="currentColor" viewBox="0 0 24 24">
-                    <rect x="4" y="12" width="16" height="2" rx="1" />
-                  </svg>
                 </div>
               )}
             </div>
@@ -816,29 +813,56 @@ const PdfViewer = ({ file, onClose, onAskAboutSelection, isInline = false }: Pdf
           </div>
 
           {/* Selection Actions Popup */}
-          {showAskButton && (
-            <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 glass-card p-3 flex gap-2 animate-fade-in-up z-50 shadow-xl">
-              <button
-                onClick={handleHighlightSelection}
-                className="px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 rounded-xl font-medium transition-all"
+          {showAskButton && selectedText && (
+            <div 
+              className="fixed z-50 animate-fade-in-up"
+              style={{
+                bottom: '5rem',
+                left: '50%',
+                transform: 'translateX(-50%)'
+              }}
+            >
+              <div 
+                className="flex items-center gap-2 px-3 py-2 rounded-xl shadow-xl border"
+                style={{
+                  background: 'var(--color-bg-elevated)',
+                  borderColor: 'var(--color-border-light)'
+                }}
               >
-                Highlight
-              </button>
-              <button
-                onClick={handleAskAI}
-                className="button-primary flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Ask AI
-              </button>
-              <button
-                onClick={() => setShowAskButton(false)}
-                className="button-ghost"
-              >
-                Cancel
-              </button>
+                <button
+                  onClick={handleHighlightSelection}
+                  className="px-3 py-1.5 rounded-lg font-medium text-sm transition-all hover:scale-105 flex items-center gap-1.5"
+                  style={{ 
+                    background: `${highlightColor}40`,
+                    color: 'var(--color-text-primary)'
+                  }}
+                >
+                  <Highlighter className="w-3.5 h-3.5" />
+                  Highlight
+                </button>
+                <button
+                  onClick={handleAskAI}
+                  className="px-3 py-1.5 rounded-lg font-medium text-sm transition-all hover:scale-105 flex items-center gap-1.5"
+                  style={{ 
+                    background: 'linear-gradient(135deg, #35d0c3 0%, #8b93d4 100%)',
+                    color: '#FFFFFF'
+                  }}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Ask AI
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAskButton(false);
+                    window.getSelection()?.removeAllRanges();
+                  }}
+                  className="p-1.5 rounded-lg hover:bg-black/10 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" style={{ color: 'var(--color-text-secondary)' }} />
+                </button>
+              </div>
             </div>
           )}
         </div>
