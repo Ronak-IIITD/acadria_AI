@@ -3,7 +3,8 @@ import type { StudyFile } from '../types';
 import UploadIcon from './icons/UploadIcon';
 import * as pdfjsLib from 'pdfjs-dist/build/pdf.mjs';
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { uploadDocumentsToBackend } from '../services/uploadService';
+import { uploadDocumentsToBackend, type UploadProgress } from '../services/uploadService';
+import { CheckCircle, XCircle, Loader2, FileText } from 'lucide-react';
 
 // Add Mammoth.js type declaration for global script
 declare const mammoth: any;
@@ -19,7 +20,9 @@ interface UploadingFile {
   id: string;
   name: string;
   progress: number; // 0-100, or -1 for error
+  status: 'pending' | 'processing' | 'completed' | 'error';
   errorMessage?: string;
+  chunks?: number;
 }
 
 const SUPPORTED_EXTENSIONS = ['pdf', 'txt', 'docx', 'md', 'rtf', 'pptx'];
@@ -203,6 +206,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFilesAdded }) => {
       id: `${file.name}-${Date.now()}-${Math.random()}`,
       name: file.name,
       progress: 0,
+      status: 'pending',
     }));
     setUploadingFiles(initialUploadState);
 
@@ -282,11 +286,22 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFilesAdded }) => {
       const filesToUpload = [...validFiles];
 
       uploadDocumentsToBackend(filesToUpload).then(result => {
-        if (result.success) {
+        if (result && result.successful > 0) {
           console.log('✅ Files uploaded to backend successfully:', result.documents);
-        } else {
-          console.error('❌ Backend upload failed:', result.error);
-          // You might want to show an error toast here
+          
+          // Update file statuses
+          const updatedFiles = uploadingFiles.map(f => {
+            const uploadResult = result.documents.find(d => d.filename === f.name);
+            if (uploadResult?.status === 'success') {
+              return { ...f, progress: 100, status: 'completed' as const, chunks: uploadResult.chunks };
+            } else if (uploadResult?.status === 'error') {
+              return { ...f, progress: -1, status: 'error' as const, errorMessage: uploadResult.error };
+            }
+            return f;
+          });
+          setUploadingFiles(updatedFiles);
+        } else if (result && result.failed > 0) {
+          console.error('❌ Some files failed to upload:', result.documents);
         }
       }).catch(error => {
         console.error('❌ Backend upload error:', error);
@@ -346,27 +361,71 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFilesAdded }) => {
               <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-3 text-left">
                   {isUploading ? "Processing files..." : "Upload Complete"}
               </h3>
-              <ul className="space-y-4">
+              <ul className="space-y-3">
                   {uploadingFiles.map(file => (
                       <li key={file.id} className="animate-fade-in">
-                          <div className="flex justify-between items-center text-xs mb-1">
-                              <span className="text-gray-700 dark:text-gray-300 font-medium truncate pr-2" title={file.name}>{file.name}</span>
-                              <span className={`font-semibold ${file.progress === -1 ? 'text-red-500' : 'text-gray-600 dark:text-gray-400'}`}>
-                                  {file.progress !== -1 ? `${file.progress}%` : 'Error'}
-                              </span>
+                          <div className="flex items-center gap-3">
+                              {/* Status Icon */}
+                              <div className="flex-shrink-0">
+                                  {file.status === 'completed' && (
+                                      <CheckCircle className="w-5 h-5 text-green-500" />
+                                  )}
+                                  {file.status === 'error' && (
+                                      <XCircle className="w-5 h-5 text-red-500" />
+                                  )}
+                                  {(file.status === 'pending' || file.status === 'processing') && (
+                                      <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                                  )}
+                              </div>
+                              
+                              {/* File Info */}
+                              <div className="flex-1 min-w-0">
+                                  <div className="flex justify-between items-center mb-1">
+                                      <span className="text-sm text-gray-700 dark:text-gray-300 font-medium truncate pr-2" title={file.name}>
+                                          {file.name}
+                                      </span>
+                                      <span className={`text-xs font-semibold flex-shrink-0 ${
+                                          file.status === 'error' ? 'text-red-500' : 
+                                          file.status === 'completed' ? 'text-green-500' : 'text-gray-500'
+                                      }`}>
+                                          {file.status === 'error' ? 'Failed' : 
+                                           file.status === 'completed' ? `${file.chunks || 0} chunks` : 
+                                           `${file.progress}%`}
+                                      </span>
+                                  </div>
+                                  <div className="w-full bg-gray-300/70 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                                      <div
+                                          className={`h-1.5 rounded-full transition-all duration-500 ease-out ${
+                                              file.status === 'error' ? 'bg-red-500' : 
+                                              file.status === 'completed' ? 'bg-green-500' : 'bg-blue-600'
+                                          }`}
+                                          style={{ width: `${file.status === 'error' ? 100 : Math.max(0, file.progress)}%` }}
+                                      ></div>
+                                  </div>
+                                  {file.status === 'error' && file.errorMessage && (
+                                      <p className="text-xs text-red-600 dark:text-red-400 mt-1.5 text-left">{file.errorMessage}</p>
+                                  )}
+                              </div>
                           </div>
-                          <div className="w-full bg-gray-300/70 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
-                              <div
-                                  className={`h-1.5 rounded-full transition-all duration-500 ease-out ${file.progress === -1 ? 'bg-red-500' : 'bg-blue-600'}`}
-                                  style={{ width: `${file.progress === -1 ? 100 : Math.max(0, file.progress)}%` }}
-                              ></div>
-                          </div>
-                           {file.progress === -1 && file.errorMessage && (
-                                <p className="text-xs text-red-600 dark:text-red-400 mt-1.5 text-left">{file.errorMessage}</p>
-                           )}
                       </li>
                   ))}
               </ul>
+              
+              {/* Summary */}
+              {uploadingFiles.every(f => f.status !== 'pending' && f.status !== 'processing') && (
+                  <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex justify-between text-sm">
+                          <span className="text-gray-600 dark:text-gray-400">
+                              {uploadingFiles.filter(f => f.status === 'completed').length} of {uploadingFiles.length} files uploaded
+                          </span>
+                          {uploadingFiles.some(f => f.status === 'error') && (
+                              <span className="text-red-500 font-medium">
+                                  {uploadingFiles.filter(f => f.status === 'error').length} failed
+                              </span>
+                          )}
+                      </div>
+                  </div>
+              )}
           </div>
         ) : (
           <>
@@ -378,7 +437,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFilesAdded }) => {
                   <span>{isDragOver ? 'Release to upload files!' : 'Click to upload or drag & drop'}</span>
                   <input id="file-upload" name="file-upload" type="file" className="sr-only" multiple onChange={handleFileChange} disabled={isUploading} accept=".pdf,.txt,.docx,.md,.rtf,.pptx" />
               </label>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">PDF, TXT, DOCX, MD, RTF, PPTX supported</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">PDF, TXT, DOCX, MD, RTF, PPTX supported (up to 100 files)</p>
           </>
         )}
       </div>

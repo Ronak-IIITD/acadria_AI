@@ -2,14 +2,37 @@ import { getAuthHeaders } from '../lib/authHelpers';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
+export interface UploadProgress {
+  filename: string;
+  progress: number;
+  status: 'pending' | 'processing' | 'completed' | 'error';
+  error?: string;
+}
+
+export interface UploadResult {
+  filename: string;
+  document_id?: string;
+  status: 'success' | 'error';
+  chunks?: number;
+  error?: string;
+}
+
+export interface BatchUploadResponse {
+  documents: UploadResult[];
+  total: number;
+  successful: number;
+  failed: number;
+  batch_id: string;
+}
+
 /**
  * Upload documents to the backend for RAG processing
+ * Supports batch uploads up to 100 files
  */
-export const uploadDocumentsToBackend = async (files: File[]): Promise<{
-  success: boolean;
-  documents: Array<{ filename: string; document_id: string; status: string }>;
-  error?: string;
-}> => {
+export const uploadDocumentsToBackend = async (
+  files: File[],
+  onProgress?: (progress: UploadProgress) => void
+): Promise<BatchUploadResponse | null> => {
   try {
     console.log(`📤 Uploading ${files.length} files to backend...`);
 
@@ -34,21 +57,110 @@ export const uploadDocumentsToBackend = async (files: File[]): Promise<{
       throw new Error(`Upload failed: ${response.status} - ${errorText}`);
     }
 
-    const data = await response.json();
+    const data: BatchUploadResponse = await response.json();
     console.log('✅ Upload successful:', data);
 
-    return {
-      success: true,
-      documents: data.documents || []
-    };
+    // Report individual file progress
+    if (onProgress) {
+      data.documents.forEach((doc, idx) => {
+        onProgress({
+          filename: doc.filename,
+          progress: 100,
+          status: doc.status === 'success' ? 'completed' : 'error',
+          error: doc.error
+        });
+      });
+    }
+
+    return data;
   } catch (error) {
     console.error('❌ Upload error:', error);
-    return {
-      success: false,
-      documents: [],
-      error: error instanceof Error ? error.message : 'Upload failed'
-    };
+    return null;
   }
+};
+
+/**
+ * Upload a single file with progress tracking using XMLHttpRequest
+ */
+export const uploadSingleFile = (
+  file: File,
+  onProgress: (progress: number) => void,
+  signal?: AbortSignal
+): Promise<UploadResult> => {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) {
+        const progress = Math.round((event.loaded / event.total) * 100);
+        onProgress(progress);
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          const doc = data.documents?.[0];
+          resolve({
+            filename: file.name,
+            document_id: doc?.document_id,
+            status: doc?.status === 'success' ? 'success' : 'error',
+            chunks: doc?.chunks,
+            error: doc?.error
+          });
+        } catch {
+          resolve({
+            filename: file.name,
+            status: 'error',
+            error: 'Failed to parse response'
+          });
+        }
+      } else {
+        resolve({
+          filename: file.name,
+          status: 'error',
+          error: `Upload failed: ${xhr.status}`
+        });
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      resolve({
+        filename: file.name,
+        status: 'error',
+        error: 'Network error'
+      });
+    });
+
+    xhr.addEventListener('abort', () => {
+      resolve({
+        filename: file.name,
+        status: 'error',
+        error: 'Upload cancelled'
+      });
+    });
+
+    getAuthHeaders().then(headers => {
+      delete headers['Content-Type'];
+      
+      xhr.open('POST', `${BACKEND_URL}/api/upload`);
+      Object.entries(headers).forEach(([key, value]) => {
+        xhr.setRequestHeader(key, value);
+      });
+
+      const formData = new FormData();
+      formData.append('files', file);
+      
+      xhr.send(formData);
+    }).catch(reject);
+
+    if (signal) {
+      signal.addEventListener('abort', () => {
+        xhr.abort();
+      });
+    }
+  });
 };
 
 /**
@@ -93,5 +205,28 @@ export const listDocumentsFromBackend = async (): Promise<{
   } catch (error) {
     console.error('❌ List documents error:', error);
     return { documents: [] };
+  }
+};
+
+/**
+ * Get upload progress for a batch
+ */
+export const getUploadProgress = async (batchId: string): Promise<UploadProgress | null> => {
+  try {
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(`${BACKEND_URL}/api/upload/progress/${batchId}`, {
+      method: 'GET',
+      headers
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('❌ Get progress error:', error);
+    return null;
   }
 };

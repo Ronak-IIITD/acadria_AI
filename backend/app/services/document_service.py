@@ -380,3 +380,10 @@ class DocumentService:
     async def list_documents(self, user_id: str) -> List[Dict[str, Any]]:
         """List all uploaded documents for a specific user"""
         return [doc for doc in self.documents.values() if doc.get("user_id") == user_id]
+
+    async def get_document_chunk_count(self, document_id: str, user_id: str) -> int:
+        """Get the number of chunks for a document"""
+        doc = self.documents.get(document_id)
+        if doc and doc.get("user_id") == user_id:
+            return doc.get("chunks", 0)
+        return 0
