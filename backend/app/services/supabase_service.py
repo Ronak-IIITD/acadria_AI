@@ -56,14 +56,12 @@ class SupabaseService:
 
     # ==================== DOCUMENTS ====================
 
-    async def create_document(
-        self, user_id: str, filename: str, **kwargs
-    ) -> Dict[str, Any]:
+    def create_document(self, user_id: str, filename: str, **kwargs) -> Dict[str, Any]:
         """Create a new document record"""
         data = {"user_id": user_id, "filename": filename, **kwargs}
         return self.client.table("documents").insert(data).execute()
 
-    async def get_documents(self, user_id: str) -> List[Dict[str, Any]]:
+    def get_documents(self, user_id: str) -> List[Dict[str, Any]]:
         """Get all documents for a user"""
         return (
             self.client.table("documents")
@@ -73,9 +71,7 @@ class SupabaseService:
             .data
         )
 
-    async def get_document(
-        self, document_id: str, user_id: str
-    ) -> Optional[Dict[str, Any]]:
+    def get_document(self, document_id: str, user_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific document"""
         result = (
             self.client.table("documents")
@@ -86,7 +82,7 @@ class SupabaseService:
         )
         return result.data[0] if result.data else None
 
-    async def update_document(
+    def update_document(
         self, document_id: str, user_id: str, **kwargs
     ) -> Dict[str, Any]:
         """Update document metadata"""
@@ -98,7 +94,7 @@ class SupabaseService:
             .execute()
         )
 
-    async def delete_document(self, document_id: str, user_id: str) -> Dict[str, Any]:
+    def delete_document(self, document_id: str, user_id: str) -> Dict[str, Any]:
         """Delete a document"""
         return (
             self.client.table("documents")
@@ -110,7 +106,7 @@ class SupabaseService:
 
     # ==================== HIGHLIGHTS ====================
 
-    async def create_highlight(
+    def create_highlight(
         self,
         user_id: str,
         document_id: str,
@@ -128,7 +124,7 @@ class SupabaseService:
         }
         return self.client.table("highlights").insert(data).execute()
 
-    async def get_highlights(
+    def get_highlights(
         self, user_id: str, document_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Get highlights for a user, optionally filtered by document"""
@@ -139,7 +135,7 @@ class SupabaseService:
 
         return query.order("created_at", desc=True).execute().data
 
-    async def delete_highlight(self, highlight_id: str, user_id: str) -> Dict[str, Any]:
+    def delete_highlight(self, highlight_id: str, user_id: str) -> Dict[str, Any]:
         """Delete a highlight"""
         return (
             self.client.table("highlights")
@@ -149,7 +145,7 @@ class SupabaseService:
             .execute()
         )
 
-    async def get_highlights_summary(
+    def get_highlights_summary(
         self, user_id: str, document_id: str
     ) -> List[Dict[str, Any]]:
         """Get highlights grouped by color"""
@@ -164,7 +160,7 @@ class SupabaseService:
 
     # ==================== CHAT HISTORY ====================
 
-    async def create_chat_session(
+    def create_chat_session(
         self, user_id: str, title: str = "New Chat", document_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Create a new chat session"""
@@ -176,7 +172,7 @@ class SupabaseService:
         }
         return self.client.table("chat_history").insert(data).execute()
 
-    async def get_chat_sessions(self, user_id: str) -> List[Dict[str, Any]]:
+    def get_chat_sessions(self, user_id: str) -> List[Dict[str, Any]]:
         """Get all chat sessions for a user"""
         return (
             self.client.table("chat_history")
@@ -187,7 +183,7 @@ class SupabaseService:
             .data
         )
 
-    async def get_chat_session(
+    def get_chat_session(
         self, session_id: str, user_id: str
     ) -> Optional[Dict[str, Any]]:
         """Get a specific chat session"""
@@ -200,7 +196,7 @@ class SupabaseService:
         )
         return result.data[0] if result.data else None
 
-    async def update_chat_session(
+    def update_chat_session(
         self,
         session_id: str,
         user_id: str,
@@ -220,9 +216,7 @@ class SupabaseService:
             .execute()
         )
 
-    async def delete_chat_session(
-        self, session_id: str, user_id: str
-    ) -> Dict[str, Any]:
+    def delete_chat_session(self, session_id: str, user_id: str) -> Dict[str, Any]:
         """Delete a chat session"""
         return (
             self.client.table("chat_history")
@@ -234,7 +228,7 @@ class SupabaseService:
 
     # ==================== FLASHCARDS ====================
 
-    async def create_flashcard(
+    def create_flashcard(
         self,
         user_id: str,
         front: str,
@@ -252,7 +246,7 @@ class SupabaseService:
         }
         return self.client.table("flashcards").insert(data).execute()
 
-    async def get_flashcards(
+    def get_flashcards(
         self, user_id: str, document_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Get flashcards for a user"""
@@ -263,7 +257,7 @@ class SupabaseService:
 
         return query.execute().data
 
-    async def update_flashcard(
+    def update_flashcard(
         self, flashcard_id: str, user_id: str, **kwargs
     ) -> Dict[str, Any]:
         """Update flashcard (for spaced repetition)"""
@@ -275,7 +269,7 @@ class SupabaseService:
             .execute()
         )
 
-    async def delete_flashcard(self, flashcard_id: str, user_id: str) -> Dict[str, Any]:
+    def delete_flashcard(self, flashcard_id: str, user_id: str) -> Dict[str, Any]:
         """Delete a flashcard"""
         return (
             self.client.table("flashcards")
@@ -285,7 +279,7 @@ class SupabaseService:
             .execute()
         )
 
-    async def get_due_flashcards(self, user_id: str) -> List[Dict[str, Any]]:
+    def get_due_flashcards(self, user_id: str) -> List[Dict[str, Any]]:
         """Get flashcards due for review"""
         return (
             self.client.table("flashcards")
@@ -298,7 +292,7 @@ class SupabaseService:
 
     # ==================== QUIZZES ====================
 
-    async def create_quiz(
+    def create_quiz(
         self,
         user_id: str,
         questions: List[Dict[str, Any]],
@@ -315,7 +309,7 @@ class SupabaseService:
         }
         return self.client.table("quizzes").insert(data).execute()
 
-    async def get_quizzes(
+    def get_quizzes(
         self, user_id: str, document_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Get quizzes for a user"""
@@ -326,9 +320,7 @@ class SupabaseService:
 
         return query.order("created_at", desc=True).execute().data
 
-    async def complete_quiz(
-        self, quiz_id: str, user_id: str, score: int
-    ) -> Dict[str, Any]:
+    def complete_quiz(self, quiz_id: str, user_id: str, score: int) -> Dict[str, Any]:
         """Mark quiz as completed"""
         return (
             self.client.table("quizzes")
@@ -340,12 +332,12 @@ class SupabaseService:
 
     # ==================== USER ====================
 
-    async def get_user_profile(self, user_id: str) -> Optional[Dict[str, Any]]:
+    def get_user_profile(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user profile"""
         result = self.client.table("users").select("*").eq("id", user_id).execute()
         return result.data[0] if result.data else None
 
-    async def update_user_profile(self, user_id: str, **kwargs) -> Dict[str, Any]:
+    def update_user_profile(self, user_id: str, **kwargs) -> Dict[str, Any]:
         """Update user profile"""
         kwargs["updated_at"] = "now()"
         return self.client.table("users").update(kwargs).eq("id", user_id).execute()
