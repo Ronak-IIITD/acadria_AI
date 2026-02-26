@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { auth as firebaseAuth, onAuthStateChanged } from 'firebase/auth';
-import { supabase, isSupabaseConfigured, auth as supabaseAuth } from '../lib/supabase';
-import type { User } from '@supabase/supabase-js';
+import firebase from '../lib/firebase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import LandingPage from './LandingPage';
 import Login from './Login';
 import AdminLogin from './AdminLogin';
@@ -18,7 +17,7 @@ type AuthProvider = 'supabase' | 'firebase' | null;
 const AuthGate = ({ children }: AuthGateProps) => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<any>(null);
-  const [supabaseUser, setSupabaseUser] = useState<User | null>(null);
+  const [supabaseUser, setSupabaseUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -83,7 +82,7 @@ const AuthGate = ({ children }: AuthGateProps) => {
         }
         setAuthLoading(false);
         
-        const { data: { subscription } } = supabase.auth.onAuthStateChanged(async (event: string, session: any) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
           if (session) {
             setSupabaseUser(session.user);
             const appUser: AppUser = {
@@ -109,7 +108,7 @@ const AuthGate = ({ children }: AuthGateProps) => {
         console.log('🔐 Using Firebase Auth');
         setAuthProvider('firebase');
         
-        const unsubscribe = onAuthStateChanged(firebaseAuth as any, (firebaseUser: any) => {
+        const unsubscribe = firebase.auth?.onAuthStateChanged?.((firebaseUser: any) => {
           if (firebaseUser) {
             setFirebaseUser(firebaseUser);
             const isNewUser = !firebaseUser.displayName;
@@ -138,7 +137,7 @@ const AuthGate = ({ children }: AuthGateProps) => {
           setAuthLoading(false);
         });
 
-        return () => unsubscribe();
+        return () => unsubscribe?.();
       }
     };
 
@@ -239,8 +238,8 @@ const AuthGate = ({ children }: AuthGateProps) => {
     try {
       if (authProvider === 'supabase') {
         await supabase.auth.signOut();
-      } else if (firebaseAuth) {
-        await (firebaseAuth as any).signOut();
+      } else if (firebase.auth) {
+        await firebase.auth.signOut();
       }
       setUser(null);
       setCurrentView('landing');
