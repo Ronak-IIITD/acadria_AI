@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import firebase from '../lib/firebase';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { useEffect, useState } from 'react';
+import { useAuth, useUser } from '@clerk/clerk-react';
+import { getClerkToken } from '../lib/clerkToken';
 import LandingPage from './LandingPage';
 import Login from './Login';
 import AdminLogin from './AdminLogin';
@@ -12,31 +12,22 @@ interface AuthGateProps {
   children?: React.ReactNode;
 }
 
-type AuthProvider = 'supabase' | 'firebase' | null;
+type AuthProvider = 'clerk' | null;
 
 const AuthGate = ({ children }: AuthGateProps) => {
   const [user, setUser] = useState<AppUser | null>(null);
-  const [firebaseUser, setFirebaseUser] = useState<any>(null);
-  const [supabaseUser, setSupabaseUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminSession, setAdminSession] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<'landing' | 'login' | 'admin' | 'onboarding' | 'dashboard'>('landing');
-  const [authProvider, setAuthProvider] = useState<AuthProvider>(null);
+  const [authProvider] = useState<AuthProvider>('clerk');
+
+  const { isLoaded: isAuthLoaded, isSignedIn, getToken } = useAuth();
+  const { user: clerkUser, isLoaded: isUserLoaded } = useUser();
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
-
-  const getSupabaseSession = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      return session;
-    } catch (error) {
-      console.error('Error getting Supabase session:', error);
-      return null;
-    }
-  };
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -51,98 +42,50 @@ const AuthGate = ({ children }: AuthGateProps) => {
   }, [currentView, showLogin]);
 
   useEffect(() => {
-    const initAuth = async () => {
-      const storedAdminSession = localStorage.getItem('admin_session');
-      if (storedAdminSession) {
-        verifyAdminSession(storedAdminSession);
-      }
+    const storedAdminSession = localStorage.getItem('admin_session');
+    if (storedAdminSession) {
+      verifyAdminSession(storedAdminSession);
+    }
+  }, []);
 
-      const supabaseConfigured = isSupabaseConfigured();
-      
-      if (supabaseConfigured) {
-        console.log('🔐 Using Supabase Auth');
-        setAuthProvider('supabase');
-        
-        const session = await getSupabaseSession();
-        
-        if (session) {
-          setSupabaseUser(session.user);
-          const appUser: AppUser = {
-            name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
-            email: session.user.email || '',
-            photoURL: session.user.user_metadata?.avatar_url || undefined,
-            uid: session.user.id,
-            isAdmin: false,
-            plan: 'free'
-          };
-          setUser(appUser);
-          setCurrentView('dashboard');
-        } else {
+  useEffect(() => {
+    if (!isAuthLoaded || !isUserLoaded) {
+      return;
+    }
+    const syncAuth = async () => {
+      if (isSignedIn && clerkUser) {
+        const token = await getClerkToken();
+        if (token) {
+          localStorage.setItem('clerk-token', token);
+        }
+        const isNewUser = !clerkUser.firstName && !clerkUser.lastName;
+        setNeedsOnboarding(isNewUser);
+
+        const appUser: AppUser = {
+          name: clerkUser.fullName || clerkUser.emailAddresses[0]?.emailAddress?.split('@')[0] || 'User',
+          email: clerkUser.emailAddresses[0]?.emailAddress || '',
+          photoURL: clerkUser.imageUrl || undefined,
+          uid: clerkUser.id,
+          isAdmin: false,
+          plan: 'free'
+        };
+
+        setUser(appUser);
+        setCurrentView(isNewUser ? 'onboarding' : 'dashboard');
+      } else {
+        localStorage.removeItem('clerk-token');
+        setUser(null);
+        setNeedsOnboarding(false);
+        if (currentView !== 'admin') {
           setCurrentView('landing');
         }
-        setAuthLoading(false);
-        
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
-          if (session) {
-            setSupabaseUser(session.user);
-            const appUser: AppUser = {
-              name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
-              email: session.user.email || '',
-              photoURL: session.user.user_metadata?.avatar_url || undefined,
-              uid: session.user.id,
-              isAdmin: false,
-              plan: 'free'
-            };
-            setUser(appUser);
-            setCurrentView('dashboard');
-          } else {
-            setSupabaseUser(null);
-            setUser(null);
-            setCurrentView('landing');
-          }
-          setAuthLoading(false);
-        });
-
-        return () => subscription.unsubscribe();
-      } else {
-        console.log('🔐 Using Firebase Auth');
-        setAuthProvider('firebase');
-        
-        const unsubscribe = firebase.auth?.onAuthStateChanged?.((firebaseUser: any) => {
-          if (firebaseUser) {
-            setFirebaseUser(firebaseUser);
-            const isNewUser = !firebaseUser.displayName;
-            setNeedsOnboarding(isNewUser);
-            
-            const appUser: AppUser = {
-              name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
-              email: firebaseUser.email || '',
-              photoURL: firebaseUser.photoURL || undefined,
-              uid: firebaseUser.uid,
-              isAdmin: false,
-              plan: 'free'
-            };
-            
-            setUser(appUser);
-            setCurrentView(isNewUser ? 'onboarding' : 'dashboard');
-          } else {
-            setUser(null);
-            setFirebaseUser(null);
-            setNeedsOnboarding(false);
-            if (currentView !== 'admin') {
-              setCurrentView('landing');
-            }
-          }
-          
-          setAuthLoading(false);
-        });
-
-        return () => unsubscribe?.();
       }
+
+      setAuthLoading(false);
     };
 
-    initAuth();
-  }, []);
+    syncAuth();
+  }, [isAuthLoaded, isUserLoaded, isSignedIn, clerkUser, getToken, currentView]);
 
   const verifyAdminSession = async (sessionToken: string) => {
     try {
@@ -234,19 +177,6 @@ const AuthGate = ({ children }: AuthGateProps) => {
     setCurrentView('dashboard');
   };
 
-  const handleLogout = async () => {
-    try {
-      if (authProvider === 'supabase') {
-        await supabase.auth.signOut();
-      } else if (firebase.auth) {
-        await firebase.auth.signOut();
-      }
-      setUser(null);
-      setCurrentView('landing');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
 
   if (authLoading) {
     return (
@@ -311,10 +241,10 @@ const AuthGate = ({ children }: AuthGateProps) => {
     );
   }
 
-  if (currentView === 'onboarding' && (firebaseUser || supabaseUser)) {
+  if (currentView === 'onboarding' && clerkUser) {
     return (
       <Onboarding 
-        user={supabaseUser || firebaseUser}
+        user={clerkUser}
         onComplete={handleOnboardingComplete}
       />
     );

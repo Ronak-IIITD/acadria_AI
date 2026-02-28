@@ -1,7 +1,5 @@
 import { useState } from 'react';
-import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth as firebaseAuth, googleProvider } from '../lib/firebase';
-import { supabase, isSupabaseConfigured, auth as supabaseAuth } from '../lib/supabase';
+import { useClerk } from '@clerk/clerk-react';
 import AIBookIcon from './icons/AIBookIcon';
 import type { User } from '../types';
 
@@ -12,75 +10,21 @@ interface LoginProps {
 
 const Login = ({ onLogin, onClose }: LoginProps) => {
   const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const useSupabase = isSupabaseConfigured();
+  const { openSignIn, openSignUp } = useClerk();
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError('');
-
-    if (useSupabase) {
-      try {
-        console.log('🔑 Attempting Supabase OAuth sign-in...');
-        const { error } = await supabaseAuth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: `${window.location.origin}/auth/callback`,
-          },
-        });
-        
-        if (error) throw error;
-        console.log('✅ OAuth redirect initiated');
-      } catch (err: any) {
-        console.error('❌ Supabase OAuth error:', err);
-        setError(err.message || 'Failed to sign in with Google');
-        setLoading(false);
-      }
-      return;
-    }
-
-    if (!firebaseAuth || !googleProvider) {
-      setError('Authentication is not configured. Please set up credentials.');
-      setLoading(false);
-      return;
-    }
-
     try {
-      console.log('🔑 Attempting Firebase Google sign-in with popup...');
-      const result = await signInWithPopup(firebaseAuth, googleProvider);
-      console.log('✅ Google sign-in successful:', result.user.email);
-      
-      const user: User = {
-        name: result.user.displayName || 'User',
-        email: result.user.email || '',
-      };
-      
-      onLogin(user);
-      setLoading(false);
+      await openSignIn({
+        redirectUrl: `${window.location.origin}`,
+        afterSignInUrl: `${window.location.origin}`,
+      });
     } catch (err: any) {
-      console.error('❌ Google sign-in error:', err);
-      const errorCode = (err as any)?.code || '';
-      const errorMessage = (err as any)?.message || '';
-
-      if (errorCode === 'auth/popup-blocked') {
-        setError('Popup was blocked by your browser. Please allow popups for this site.');
-      } else if (errorCode === 'auth/popup-closed-by-user') {
-        setError('Sign-in was cancelled. Please try again.');
-      } else if (errorCode === 'auth/unauthorized-domain') {
-        const currentDomain = window.location.hostname;
-        setError(`Domain "${currentDomain}" is not authorized. Add it to your auth provider.`);
-      } else if (errorCode === 'auth/network-request-failed') {
-        setError('Network error. Please check your internet connection.');
-      } else {
-        setError(errorMessage || 'Failed to sign in with Google. Please try again.');
-      }
-
-      setLoading(false);
+      console.error('❌ Clerk sign-in error:', err);
+      setError(err?.message || 'Failed to sign in');
     }
   };
 
@@ -88,69 +32,21 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-
-    if (useSupabase) {
-      try {
-        if (isSignUp) {
-          const { data, error } = await supabaseAuth.signUp({
-            email,
-            password,
-            options: {
-              emailRedirectTo: `${window.location.origin}/auth/callback`,
-            },
-          });
-          if (error) throw error;
-          
-          if (data.user && !data.session) {
-            setError('Please check your email to confirm your account!');
-            setLoading(false);
-            return;
-          }
-        } else {
-          const { error } = await supabaseAuth.signInWithPassword({
-            email,
-            password,
-          });
-          if (error) throw error;
-        }
-        
-        const { data: userData } = await supabaseAuth.getUser();
-        const appUser: User = {
-          name: userData?.user?.user_metadata?.full_name || email.split('@')[0],
-          email: userData?.user?.email || email,
-        };
-        onLogin(appUser);
-      } catch (err: any) {
-        console.error('Supabase email auth error:', err);
-        setError(err.message || 'Authentication failed');
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
-
-    if (!firebaseAuth || typeof signInWithEmailAndPassword !== 'function') {
-      setError('Firebase authentication is not configured.');
-      setLoading(false);
-      return;
-    }
-
     try {
-      let result;
       if (isSignUp) {
-        result = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+        await openSignUp({
+          redirectUrl: `${window.location.origin}`,
+          afterSignUpUrl: `${window.location.origin}`,
+        });
       } else {
-        result = await signInWithEmailAndPassword(firebaseAuth, email, password);
+        await openSignIn({
+          redirectUrl: `${window.location.origin}`,
+          afterSignInUrl: `${window.location.origin}`,
+        });
       }
-      
-      const user: User = {
-        name: result.user.displayName || email.split('@')[0],
-        email: result.user.email || email,
-      };
-      onLogin(user);
     } catch (err: any) {
-      console.error('Email auth error:', err);
-      setError((err as any)?.message || 'Authentication failed');
+      console.error('Clerk auth error:', err);
+      setError(err?.message || 'Authentication failed');
     } finally {
       setLoading(false);
     }
@@ -192,9 +88,7 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
           {isSignUp ? 'Create Account' : 'Welcome back'}
         </h2>
         <p className="mb-8" style={{ color: 'var(--color-text-secondary)' }}>
-          {useSupabase 
-            ? 'Sign in to continue your learning journey with AI-powered study tools.'
-            : 'Let\'s continue your learning journey.'}
+          Sign in to continue your learning journey with AI-powered study tools.
         </p>
         
         <button
@@ -229,72 +123,6 @@ const Login = ({ onLogin, onClose }: LoginProps) => {
         </div>
 
         <form onSubmit={handleEmailAuth} className="space-y-4">
-          <div>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full px-4 py-3.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-offset-0"
-              style={{
-                backgroundColor: 'var(--color-surface-soft)',
-                border: '1px solid var(--color-border-light)',
-                color: 'var(--color-text-primary)',
-                boxShadow: 'var(--shadow-sm)',
-              }}
-              placeholder="Enter your email"
-            />
-          </div>
-          
-          <div className="relative">
-            <input
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="w-full px-4 py-3.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-offset-0"
-              style={{
-                backgroundColor: 'var(--color-surface-soft)',
-                border: '1px solid var(--color-border-light)',
-                color: 'var(--color-text-primary)',
-                boxShadow: 'var(--shadow-sm)',
-              }}
-              placeholder="Enter your password"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 transition-opacity hover:opacity-70"
-              style={{ color: 'var(--color-text-secondary)' }}
-            >
-              {showPassword ? (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              )}
-            </button>
-          </div>
-
-          {!isSignUp && (
-            <div className="text-right">
-              <button
-                type="button"
-                className="text-sm transition-opacity hover:opacity-70"
-                style={{ color: 'var(--color-text-muted)' }}
-              >
-                Forgot password?
-              </button>
-            </div>
-          )}
-
           {error && (
             <div 
               className="text-sm p-3 rounded-lg"

@@ -2,7 +2,7 @@
 
 > **Your AI-powered study companion** — Transform documents into interactive learning experiences with flashcards, quizzes, and smart summaries.
 
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white) ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white) ![Firebase](https://img.shields.io/badge/Firebase-12.5-FFCA28?logo=firebase&logoColor=black) ![License](https://img.shields.io/badge/License-MIT-green)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white) ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white) ![Clerk](https://img.shields.io/badge/Clerk-Auth-3B82F6?logo=clerk&logoColor=white) ![Convex](https://img.shields.io/badge/Convex-DB-111827?logo=convex&logoColor=white) ![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
 
@@ -27,14 +27,14 @@ Acadira AI is an intelligent learning platform that turns your study materials i
 ### Document Support
 - **Multi-format Upload** — PDF, DOCX, PPTX, TXT, Markdown, and RTF files
 - **Batch Processing** — Upload multiple documents at once with progress tracking
-- **Cloud Storage** — All files synced securely with Firebase Storage
+- **Highlights Sync** — Highlights are synced in Convex
 
 ### User Experience
 - **Keyboard-First Workflows** — Study flashcards using arrow keys and number shortcuts
 - **Dark/Light Themes** — System-aware theme switching with persistent preferences
 - **Smooth Animations** — 3D flip effects, scroll reveals, and polished transitions
 - **Responsive Design** — Works seamlessly on desktop, tablet, and mobile
-- **Firebase Auth** — Secure authentication with Google Sign-In and email/password
+- **Clerk Auth** — Secure authentication with Google OAuth and hosted UI
 
 ---
 
@@ -52,7 +52,7 @@ Acadira AI is an intelligent learning platform that turns your study materials i
 - **Google Gemini 2.5 Flash** — State-of-the-art language model for AI features
 - **Grok (xAI)** — Alternative AI model support
 - **RAG Implementation** — Retrieval-Augmented Generation for context-aware responses
-- **Firebase Admin SDK** — Backend authentication and storage management
+- **Clerk JWT** — Backend authentication
 
 ### AI & Document Processing
 - **PyPDF2 & PyMuPDF** — PDF text extraction and annotation handling
@@ -61,9 +61,8 @@ Acadira AI is an intelligent learning platform that turns your study materials i
 - **Sentence Embeddings** — Document chunking and semantic search
 
 ### Infrastructure
-- **Firebase Authentication** — User management
-- **Firebase Firestore** — NoSQL database for user data
-- **Firebase Storage** — Secure file hosting
+- **Clerk Authentication** — User management
+- **Convex Database** — Highlights and metadata
 - **CORS Middleware** — Secure cross-origin requests
 - **Rate Limiting** — API protection
 
@@ -75,7 +74,8 @@ Acadira AI is an intelligent learning platform that turns your study materials i
 - **Node.js 18+** and npm
 - **Python 3.12+** (for backend)
 - **Google Gemini API Key** ([Get one free](https://makersuite.google.com/app/apikey))
-- **Firebase Project** (optional but recommended for auth & storage)
+- **Clerk Project** (required for auth)
+- **Convex Project** (required for database)
 
 ### Installation
 
@@ -96,7 +96,8 @@ cp .env.example .env.local
 
 # Edit .env.local and add your API keys:
 # VITE_API_KEY=your_gemini_api_key
-# VITE_FIREBASE_API_KEY=your_firebase_key
+# VITE_CLERK_PUBLISHABLE_KEY=your_clerk_key
+# VITE_CONVEX_URL=your_convex_url
 # ... (see Configuration section below)
 ```
 

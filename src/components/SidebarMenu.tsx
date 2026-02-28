@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { signOut } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { SignOutButton, useUser } from '@clerk/clerk-react';
 import FileUpload from './FileUpload';
 import FileList from './FileList';
 import AIBookIcon from './icons/AIBookIcon';
@@ -50,19 +49,12 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
   const [settingsSection, setSettingsSection] = useState<'account' | 'personalization' | 'billing' | 'data'>('account');
   const { theme, toggleTheme } = useContext(ThemeContext);
 
-  const handleLogout = async () => {
-    if (window.confirm('Are you sure you want to log out?')) {
-      try {
-        await signOut(auth);
-        localStorage.removeItem('chatHistory');
-        setShowProfileMenu(false);
-        onClose();
-        // User will be automatically redirected to landing page by App.tsx auth listener
-      } catch (error) {
-        console.error('Logout error:', error);
-        alert('Failed to log out. Please try again.');
-      }
-    }
+  const { user } = useUser();
+
+  const handleLogoutCleanup = () => {
+    localStorage.removeItem('chatHistory');
+    setShowProfileMenu(false);
+    onClose();
   };
 
   const openSettings = (section: 'account' | 'personalization' | 'billing' | 'data' = 'account') => {
@@ -284,15 +276,17 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
               </button>
 
               {/* Log Out */}
-              <button 
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left group"
-              >
-                <svg className="w-4 h-4 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors" style={{ color: 'var(--color-text-primary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                <span className="text-sm font-medium group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors" style={{ color: 'var(--color-text-primary)' }}>Log out</span>
-              </button>
+              <SignOutButton signOutOptions={{ redirectUrl: '/' }}>
+                <button 
+                  onClick={handleLogoutCleanup}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left group"
+                >
+                  <svg className="w-4 h-4 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors" style={{ color: 'var(--color-text-primary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  <span className="text-sm font-medium group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors" style={{ color: 'var(--color-text-primary)' }}>Log out</span>
+                </button>
+              </SignOutButton>
             </div>
           )}
 
@@ -302,13 +296,19 @@ const SidebarMenu: React.FC<SidebarMenuProps> = ({
             className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm text-white" style={{
+              <div className="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm text-white overflow-hidden" style={{
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
               }}>
-                A
+                {user?.imageUrl ? (
+                  <img src={user.imageUrl} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  (user?.firstName?.[0] || user?.emailAddresses[0]?.emailAddress?.[0] || 'U')
+                )}
               </div>
               <div className="text-left">
-                <div className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>Aizen</div>
+                <div className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                  {user?.fullName || user?.emailAddresses[0]?.emailAddress?.split('@')[0] || 'User'}
+                </div>
                 <div className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>Free Plan</div>
               </div>
             </div>

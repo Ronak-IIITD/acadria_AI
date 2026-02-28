@@ -2,7 +2,20 @@ import { GoogleGenAI } from "@google/genai";
 import type { StudyFile, ChatMessage, ContentBlock } from '../types';
 import * as pdfjsLib from 'pdfjs-dist/build/pdf.mjs';
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { getAuthHeaders } from '../lib/authHelpers';
+import { getClerkToken } from '../lib/clerkToken';
+
+const getAuthHeaders = async (): Promise<Record<string, string>> => {
+  const token = await getClerkToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return headers;
+};
 
 // REMOVED: import { normalizeAIOutput } from '../utils/mathNormalize';
 // Server-side now handles all normalization

@@ -8,18 +8,17 @@ from typing import Optional
 from fastapi import HTTPException, Security, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
-import firebase_admin
-from firebase_admin import auth
 import logging
 from datetime import datetime, timedelta
 import secrets
 
 logger = logging.getLogger(__name__)
 
-# ADMIN CREDENTIALS (Hardcoded for you and contributors)
-# ⚠️ Keep these secure and rotate periodically
-ADMIN_EMAIL = "itadoriyuji8875@gmail.com"
-ADMIN_PASSWORD = "yuji@itadori19"
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+
+if not ADMIN_EMAIL or not ADMIN_PASSWORD:
+    logger.warning("⚠️ ADMIN_EMAIL or ADMIN_PASSWORD not configured")
 
 # Admin session management (in-memory, reset on server restart)
 admin_sessions = {}  # session_token: {email, created_at, last_used}
@@ -121,29 +120,26 @@ async def verify_admin_token(
 
 async def get_current_user_or_admin(
     request: Request,
-    firebase_token: HTTPAuthorizationCredentials = Security(
-        HTTPBearer(auto_error=False)
-    ),
+    token: HTTPAuthorizationCredentials = Security(HTTPBearer(auto_error=False)),
 ) -> dict:
     """
-    Get current user - either regular Firebase user or Admin.
+    Get current user - either regular Clerk user or Admin.
     This replaces the old get_current_user with admin support.
     """
     # First, check for admin token in header
-    admin_data = await verify_admin_token(firebase_token)
+    admin_data = await verify_admin_token(token)
     if admin_data:
         # Store in request state for downstream use
         request.state.user = admin_data
         request.state.is_admin = True
         return admin_data
 
-    # If not admin, verify as regular Firebase user
-    # Import from existing auth middleware
-    from app.middleware.auth import verify_firebase_token
+    # If not admin, verify as regular Clerk user
+    from app.middleware.auth import verify_clerk_token
 
     try:
-        if firebase_token:
-            user_data = await verify_firebase_token(firebase_token)
+        if token:
+            user_data = await verify_clerk_token(token)
             user_data["is_admin"] = False
             user_data["plan"] = "free"  # Default plan
             request.state.user = user_data

@@ -16,11 +16,7 @@ markdown==3.7
 # AI - Google Gemini (lightweight alternative)
 google-generativeai==0.8.3
 
-# Firebase (optional - can be removed after migration)
-firebase-admin==6.6.0
-
-# Supabase
-supabase==2.10.0
+# Auth (Clerk)
 PyJWT==2.9.0
 
 # Utilities

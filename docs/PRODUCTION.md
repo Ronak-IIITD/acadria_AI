@@ -8,7 +8,8 @@ This guide covers how to deploy Acadira AI to production.
 
 - Node.js 18+
 - Python 3.12+
-- Supabase account (recommended) or Firebase account
+- Convex account
+- Clerk account
 
 ---
 
@@ -17,17 +18,11 @@ This guide covers how to deploy Acadira AI to production.
 ### Frontend (.env.local)
 
 ```env
-# Supabase (recommended for production)
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your_anon_key
+# Clerk (Auth)
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_xxx
 
-# Or Firebase (fallback)
-VITE_FIREBASE_API_KEY=your_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
-VITE_FIREBASE_APP_ID=1:123456789:web:abc123
+# Convex (Database)
+VITE_CONVEX_URL=https://your-project.convex.cloud
 
 # Backend URL
 VITE_BACKEND_URL=https://your-backend-api.com
@@ -39,10 +34,10 @@ VITE_API_KEY=your_gemini_api_key
 ### Backend (.env)
 
 ```env
-# Supabase
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+# Clerk JWT Verification
+CLERK_JWT_ISSUER=https://your-clerk-issuer
+CLERK_JWT_AUDIENCE=your-clerk-audience
+CLERK_JWT_SECRET=your-clerk-jwt-secret
 
 # AI
 GEMINI_API_KEY=your_gemini_api_key
@@ -108,11 +103,11 @@ gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker
 2. Set environment variables
 3. Deploy
 
-### Supabase (Database)
+### Convex (Database)
 
-1. Create Supabase project
-2. Run SQL from `docs/SUPABASE_SETUP.md`
-3. Configure auth providers
+1. Create Convex project
+2. Configure Clerk JWT template (name: `convex`)
+3. Run `npx convex dev`
 
 ---
 

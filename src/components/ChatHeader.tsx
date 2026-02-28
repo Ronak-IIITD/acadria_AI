@@ -1,6 +1,5 @@
 import React from 'react';
-import { signOut } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { useClerk } from '@clerk/clerk-react';
 import AIBookIcon from './icons/AIBookIcon';
 
 interface ChatHeaderProps {
@@ -14,10 +13,12 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   fileCount,
   onProgressClick
 }) => {
+  const { signOut } = useClerk();
+
   const handleLogoClick = async () => {
     if (window.confirm('Return to home? You will be logged out.')) {
       try {
-        await signOut(auth);
+        await signOut();
         localStorage.removeItem('chatHistory');
       } catch (error) {
         console.error('Logout error:', error);

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { StudyFile } from '../types';
+import { useHighlights } from '../hooks/useHighlights';
 import { 
   ChevronLeft, ChevronRight, ZoomIn, ZoomOut, 
   MousePointer2, Pencil, Highlighter, Type, Eraser,
@@ -62,6 +63,7 @@ const PdfViewer = ({ file, onClose, onAskAboutSelection, isInline = false, isSpl
   const [currentDrawing, setCurrentDrawing] = useState<{ x: number; y: number }[]>([]);
   const [scale, setScale] = useState<number>(1.5);
   const [pdfDocument, setPdfDocument] = useState<any>(null);
+  const { createHighlight } = useHighlights(file.id);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -429,7 +431,7 @@ const PdfViewer = ({ file, onClose, onAskAboutSelection, isInline = false, isSpl
     }
   };
 
-  const handleHighlightSelection = () => {
+  const handleHighlightSelection = async () => {
     if (!selectedText) return;
 
     // Get the selection range to find its bounding box
@@ -471,6 +473,17 @@ const PdfViewer = ({ file, onClose, onAskAboutSelection, isInline = false, isSpl
         setAnnotations(prev => [...prev, annotation]);
       }
     });
+
+    try {
+      await createHighlight({
+        documentId: file.id,
+        content: selectedText,
+        color: highlightColor,
+        pageNumber: currentPage,
+      });
+    } catch (error) {
+      console.error('Failed to save highlight to Convex:', error);
+    }
 
     setShowAskButton(false);
     setSelectedText('');

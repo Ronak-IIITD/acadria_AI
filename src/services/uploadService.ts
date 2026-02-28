@@ -1,6 +1,19 @@
-import { getAuthHeaders } from '../lib/authHelpers';
-
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+
+import { getClerkToken } from '../lib/clerkToken';
+
+const getAuthHeaders = async (): Promise<Record<string, string>> => {
+  const token = await getClerkToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return headers;
+};
 
 export interface UploadProgress {
   filename: string;
@@ -141,12 +154,12 @@ export const uploadSingleFile = (
       });
     });
 
-    getAuthHeaders().then(headers => {
+    getAuthHeaders().then((headers) => {
       delete headers['Content-Type'];
       
       xhr.open('POST', `${BACKEND_URL}/api/upload`);
       Object.entries(headers).forEach(([key, value]) => {
-        xhr.setRequestHeader(key, value);
+        xhr.setRequestHeader(key, String(value));
       });
 
       const formData = new FormData();

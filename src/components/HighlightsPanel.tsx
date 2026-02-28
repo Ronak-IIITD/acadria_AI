@@ -10,12 +10,7 @@ import {
   X,
   Sparkles
 } from 'lucide-react';
-import { 
-  getHighlightsSummary, 
-  deleteHighlight,
-  type HighlightsSummary,
-  type Highlight 
-} from '../services/highlightsService';
+import { useHighlights } from '../hooks/useHighlights';
 
 interface HighlightsPanelProps {
   documentId: string;
@@ -45,6 +40,13 @@ const COLOR_VALUES: Record<string, string> = {
   purple: '#9C27B0',
 };
 
+type Highlight = {
+  _id: string;
+  content: string;
+  color: string;
+  pageNumber?: number;
+};
+
 const HighlightsPanel: React.FC<HighlightsPanelProps> = ({
   documentId,
   documentTitle,
@@ -52,32 +54,22 @@ const HighlightsPanel: React.FC<HighlightsPanelProps> = ({
   onAskAboutHighlight,
   onJumpToPage,
 }) => {
-  const [summary, setSummary] = useState<HighlightsSummary | null>(null);
+  const { summary, deleteHighlight } = useHighlights(documentId);
   const [loading, setLoading] = useState(true);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedColors, setExpandedColors] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    loadHighlights();
-  }, [documentId]);
-
-  const loadHighlights = async () => {
-    setLoading(true);
-    const data = await getHighlightsSummary(documentId);
-    setSummary(data);
-    
-    // Expand all colors by default
-    if (data?.by_color) {
-      setExpandedColors(new Set(Object.keys(data.by_color)));
+    if (summary?.byColor) {
+      setExpandedColors(new Set(Object.keys(summary.byColor)));
     }
     setLoading(false);
-  };
+  }, [summary]);
 
   const handleDelete = async (highlightId: string) => {
     if (confirm('Delete this highlight?')) {
-      await deleteHighlight(highlightId);
-      loadHighlights();
+      await deleteHighlight({ highlightId });
     }
   };
 
@@ -93,9 +85,9 @@ const HighlightsPanel: React.FC<HighlightsPanelProps> = ({
     });
   };
 
-  const filteredHighlights = summary?.by_color 
-    ? Object.entries(summary.by_color).reduce((acc, [color, highlights]) => {
-        const filtered = highlights.filter(h => 
+  const filteredHighlights = summary?.byColor 
+    ? Object.entries(summary.byColor as Record<string, Highlight[]>).reduce((acc, [color, highlights]) => {
+        const filtered = (highlights || []).filter(h => 
           h.content.toLowerCase().includes(searchQuery.toLowerCase())
         );
         if (filtered.length > 0) {
@@ -163,7 +155,7 @@ const HighlightsPanel: React.FC<HighlightsPanelProps> = ({
       </div>
 
       {/* Color Filter */}
-      {summary?.by_color && Object.keys(summary.by_color).length > 1 && (
+      {summary?.byColor && Object.keys(summary.byColor).length > 1 && (
         <div className="px-4 py-2 border-b flex gap-2 overflow-x-auto" style={{ borderColor: 'var(--color-border-light)' }}>
           <button
             onClick={() => setSelectedColor(null)}
@@ -178,7 +170,7 @@ const HighlightsPanel: React.FC<HighlightsPanelProps> = ({
           >
             All ({totalHighlights})
           </button>
-          {Object.entries(summary.by_color).map(([color, highlights]) => (
+          {Object.entries(summary.byColor as Record<string, Highlight[]>).map(([color, highlights]) => (
             <button
               key={color}
               onClick={() => setSelectedColor(selectedColor === color ? null : color)}
@@ -219,7 +211,7 @@ const HighlightsPanel: React.FC<HighlightsPanelProps> = ({
           </div>
         ) : (
           <div className="space-y-3">
-            {Object.entries(filteredHighlights)
+            {Object.entries(filteredHighlights as Record<string, Highlight[]>)
               .filter(([color]) => !selectedColor || selectedColor === color)
               .map(([color, highlights]) => (
                 <div key={color}>
@@ -248,9 +240,9 @@ const HighlightsPanel: React.FC<HighlightsPanelProps> = ({
                   {/* Highlights */}
                   {expandedColors.has(color) && (
                     <div className="ml-4 space-y-2 mt-1">
-                      {highlights.map((highlight) => (
+                      {highlights.map((highlight: Highlight) => (
                         <div
-                          key={highlight.id}
+                          key={highlight._id}
                           className="p-3 rounded-lg border group"
                           style={{
                             background: `${COLOR_VALUES[color] || '#FFEB3B'}15`,
@@ -262,7 +254,7 @@ const HighlightsPanel: React.FC<HighlightsPanelProps> = ({
                           </p>
                           <div className="flex items-center justify-between mt-2">
                             <div className="flex items-center gap-2">
-                              {highlight.page_number && (
+                              {highlight.pageNumber && (
                                 <span 
                                   className="text-xs px-2 py-0.5 rounded"
                                   style={{ 
@@ -270,7 +262,7 @@ const HighlightsPanel: React.FC<HighlightsPanelProps> = ({
                                     color: 'var(--color-text-secondary)' 
                                   }}
                                 >
-                                  Page {highlight.page_number}
+                                  Page {highlight.pageNumber}
                                 </span>
                               )}
                             </div>
@@ -283,7 +275,7 @@ const HighlightsPanel: React.FC<HighlightsPanelProps> = ({
                                 <Sparkles className="w-3.5 h-3.5" style={{ color: '#35d0c3' }} />
                               </button>
                               <button
-                                onClick={() => handleDelete(highlight.id)}
+                                onClick={() => handleDelete(highlight._id)}
                                 className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
                                 title="Delete"
                               >

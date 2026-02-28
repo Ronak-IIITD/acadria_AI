@@ -2,18 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import ChatHeader from '../ChatHeader';
 
-// Mock Firebase
-vi.mock('../../lib/firebase', () => ({
-  auth: {
-    onAuthStateChanged: vi.fn(),
-    signOut: vi.fn(),
-    currentUser: null,
-  },
-}));
+const signOutMock = vi.fn().mockResolvedValue(undefined);
 
-// Mock Firebase signOut
-vi.mock('firebase/auth', () => ({
-  signOut: vi.fn().mockResolvedValue(undefined),
+vi.mock('@clerk/clerk-react', () => ({
+  useClerk: () => ({
+    signOut: signOutMock,
+  }),
 }));
 
 describe('ChatHeader', () => {
@@ -113,6 +107,20 @@ describe('ChatHeader', () => {
     expect(window.confirm).toHaveBeenCalledWith('Return to home? You will be logged out.');
     
     // Restore
+    window.confirm = originalConfirm;
+  });
+
+  it('logs out when confirmation is accepted', async () => {
+    const originalConfirm = window.confirm;
+    window.confirm = vi.fn().mockReturnValue(true);
+
+    render(<ChatHeader {...defaultProps} />);
+
+    const homeButton = screen.getByLabelText('Return to home');
+    fireEvent.click(homeButton);
+
+    expect(signOutMock).toHaveBeenCalledTimes(1);
+
     window.confirm = originalConfirm;
   });
 });

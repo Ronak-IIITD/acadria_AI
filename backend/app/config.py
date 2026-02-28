@@ -33,10 +33,10 @@ MIN_QUERY_LENGTH = int(os.getenv("MIN_QUERY_LENGTH", "1"))
 BACKEND_PORT = int(os.getenv("PORT", "8000"))
 BACKEND_HOST = os.getenv("HOST", "0.0.0.0")
 
-# Supabase Configuration
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+# Clerk Configuration
+CLERK_JWT_ISSUER = os.getenv("CLERK_JWT_ISSUER", "")
+CLERK_JWT_AUDIENCE = os.getenv("CLERK_JWT_AUDIENCE", "")
+CLERK_JWT_SECRET = os.getenv("CLERK_JWT_SECRET", "")
 
 # AI Model Retry Configuration
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "3"))  # Max retry attempts for model errors

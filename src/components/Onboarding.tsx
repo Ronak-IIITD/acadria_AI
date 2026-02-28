@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
-import { User as FirebaseUser, updateProfile } from 'firebase/auth';
-import { auth } from '../lib/firebase';
 import { BookOpen, Sparkles, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
 
 interface OnboardingProps {
-  user: FirebaseUser;
+  user: any;
   onComplete: () => void;
 }
 
@@ -12,7 +10,7 @@ type OnboardingStep = 'welcome' | 'profile' | 'preferences' | 'complete';
 
 const Onboarding = ({ user, onComplete }: OnboardingProps) => {
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('welcome');
-  const [displayName, setDisplayName] = useState(user.displayName || '');
+  const [displayName, setDisplayName] = useState(user.fullName || '');
   const [interests, setInterests] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(25);
@@ -53,9 +51,12 @@ const Onboarding = ({ user, onComplete }: OnboardingProps) => {
     setLoading(true);
     
     try {
-      if (auth.currentUser && displayName) {
-        await updateProfile(auth.currentUser, {
-          displayName: displayName
+      if (displayName) {
+        const [firstName, ...rest] = displayName.trim().split(' ');
+        const lastName = rest.join(' ');
+        await user.update({
+          firstName: firstName || user.firstName || '',
+          lastName: lastName || user.lastName || '',
         });
       }
 

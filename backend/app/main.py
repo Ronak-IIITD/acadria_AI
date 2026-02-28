@@ -13,7 +13,7 @@ print(f"✅ GROK_API_KEY present: {bool(os.getenv('GROK_API_KEY'))}")
 # Now import the rest after env vars are loaded
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import chat, upload, models, admin, highlights
+from app.routes import chat, upload, models, admin
 from app.middleware.rate_limit import RateLimitMiddleware
 import uvicorn
 
@@ -44,7 +44,6 @@ app.include_router(chat.router, prefix="/api", tags=["chat"])
 app.include_router(upload.router, prefix="/api", tags=["upload"])
 app.include_router(models.router, prefix="/api", tags=["models"])
 app.include_router(admin.router, prefix="/api", tags=["admin"])
-app.include_router(highlights.router, prefix="/api", tags=["highlights"])
 
 
 @app.get("/")

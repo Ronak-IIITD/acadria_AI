@@ -1,17 +1,23 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
-// Mock Firebase
-vi.mock('../lib/firebase', () => ({
-  auth: {
-    onAuthStateChanged: vi.fn((callback) => {
-      callback(null);
-      return vi.fn();
-    }),
-    signOut: vi.fn(),
-    currentUser: null,
-  },
-  firebaseApp: {},
+// Mock Clerk
+vi.mock('@clerk/clerk-react', () => ({
+  ClerkProvider: ({ children }: { children: React.ReactNode }) => children,
+  useAuth: () => ({
+    isLoaded: true,
+    isSignedIn: false,
+    getToken: vi.fn(),
+  }),
+  useUser: () => ({
+    isLoaded: true,
+    user: null,
+  }),
+  SignOutButton: ({ children }: { children: React.ReactNode }) => children,
+  useClerk: () => ({
+    openSignIn: vi.fn(),
+    openSignUp: vi.fn(),
+  }),
 }));
 
 // Mock window.matchMedia
