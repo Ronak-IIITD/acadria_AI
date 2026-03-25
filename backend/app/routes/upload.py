@@ -135,7 +135,7 @@ async def get_upload_progress(
     """Get progress for a batch upload"""
     if batch_id in upload_progress:
         progress = upload_progress[batch_id]
-        if progress.get("user_id", "").split("_")[0] == current_user["uid"]:
+        if progress.get("user_id") == current_user["uid"]:
             return progress
     return {"status": "not_found"}
 

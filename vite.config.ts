@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
           // Keep popup-compatible policy for auth providers
           'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
           // Allow external scripts and CDNs
-          'Content-Security-Policy': `script-src ${scriptSrc} https://apis.google.com https://www.gstatic.com https://*.googleapis.com https://cdn.jsdelivr.net https://aistudiocdn.com; frame-src 'self' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: https:;`
+          'Content-Security-Policy': `script-src ${scriptSrc} https://apis.google.com https://www.gstatic.com https://*.googleapis.com https://cdn.jsdelivr.net https://aistudiocdn.com; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: https:;`
         },
         // Exclude venv and other directories from file watching to prevent ENOSPC errors
         watch: {
@@ -46,6 +46,8 @@ export default defineConfig(({ mode }) => {
               // Vendor chunks
               'vendor-react': ['react', 'react-dom'],
               'vendor-pdf': ['pdfjs-dist'],
+              'vendor-katex': ['katex'],
+              'vendor-highlight': ['highlight.js'],
             }
           }
         },

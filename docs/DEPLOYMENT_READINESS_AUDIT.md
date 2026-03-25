@@ -158,7 +158,7 @@ You can postpone billing integration. Focus on reliability and guardrails first.
 ### Database / state
 - [ ] Convex project deployed.
 - [ ] Convex URL set in frontend (`VITE_CONVEX_URL`).
-- [ ] Convex generated files produced in CI before frontend build.
+- [ ] Convex-generated files produced in CI before frontend build.
 - [ ] Decide and document what Convex stores (highlights/metadata) vs what RAG store handles (chunks/embeddings).
 - [ ] Replace local JSON RAG persistence with object storage + managed vector DB for scale.
 

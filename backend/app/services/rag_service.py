@@ -539,21 +539,21 @@ You are in ENHANCED LEARNING MODE. Provide:
         structure_suffix = " → advanced insights → next steps" if level_up_mode else ""
         level_up_requirements_line = "- **LEVEL UP+ REQUIREMENTS:** Be thorough, provide expert-level insights, explain underlying principles, and guide deeper learning" if level_up_mode else ""
 
-        no_context_reminder = ""
+        no_context_grounding = ""
         if not context:
-            no_context_reminder = (
+            no_context_grounding = (
                 '**⚠️ IMPORTANT:** Since no document context was found, you MUST tell the user: '
                 '"I don\'t have any documents to reference. Please upload your study materials (PDFs, notes, etc.) so I can help you with specific content from them."'
             )
 
-        context_instructions = ""
+        grounding_block = ""
         if not context:
-            context_instructions = (
+            grounding_block = (
                 '- **NO CONTEXT AVAILABLE:** The user has not uploaded any documents yet. You MUST respond with: '
                 '"I don\'t have any documents to reference. Please upload your study materials (PDFs, notes, etc.) so I can help you with specific content from them."'
             )
         else:
-            context_instructions = (
+            grounding_block = (
                 "- **USE ONLY THE CONTEXT ABOVE:** Base your ENTIRE answer on the document context provided above\n"
                 "- **NEVER USE EXTERNAL KNOWLEDGE:** Do not invent, assume, or recall information not present in the context\n"
                 "- **IF INFORMATION IS MISSING:** If the context does not contain information to answer the question, respond with: \"I don't have that specific information in your uploaded documents. The context I found discusses [briefly mention what the context contains], but doesn't cover [what the user asked about]. Please try rephrasing your question or upload additional materials.\"\n"
@@ -627,7 +627,7 @@ Return a JSON array of content blocks with this EXACT structure:
 **📚 UPLOADED DOCUMENT CONTEXT (YOUR ONLY SOURCE OF INFORMATION):**
 {context if context else "⚠️ NO DOCUMENTS UPLOADED - User needs to upload study materials first."}
 
-{no_context_reminder}
+{no_context_grounding}
 
 **Chat History:**
 {self._format_chat_history(user_id)}
@@ -636,7 +636,7 @@ Return a JSON array of content blocks with this EXACT structure:
 {query}
 
 **🚨 CRITICAL GROUNDING INSTRUCTIONS - READ CAREFULLY:**
-{context_instructions}
+{grounding_block}
 - **MANDATORY: Follow the system formatting rules above**
 - **YOU MUST USE {default_language.upper()} for ALL code examples unless explicitly asked otherwise**
 - **RESPONSE STRUCTURE (MUST FOLLOW):**
