@@ -147,6 +147,40 @@ Provide ENHANCED responses with:
 - Related topics for further learning
 """
 
+        level_up_rule = ""
+        if level_up_mode:
+            level_up_rule = (
+                "5. LEVEL UP+ MODE: Provide comprehensive coverage with 5-7 key points, "
+                "multiple examples, and expert insights"
+            )
+
+        grounding_block = ""
+        if not context:
+            grounding_block = (
+                '- **NO CONTEXT AVAILABLE:** The user has not uploaded any documents yet. '
+                'You MUST respond with: "I don\'t have any documents to reference. '
+                'Please upload your study materials (PDFs, notes, etc.) so I can help you '
+                'with specific content from them."'
+            )
+        else:
+            grounding_block = (
+                "- **USE ONLY THE CONTEXT ABOVE:** Base your ENTIRE answer on the document context provided above\n"
+                "- **NEVER USE EXTERNAL KNOWLEDGE:** Do not invent, assume, or recall information not present in the context\n"
+                "- **IF INFORMATION IS MISSING:** If the context does not contain information to answer the question, respond with: "
+                "\"I don't have that specific information in your uploaded documents. The context I found discusses [briefly mention what "
+                "the context contains], but doesn't cover [what the user asked about]. Please try rephrasing your question or upload "
+                "additional materials.\"\n"
+                "- **CITE YOUR SOURCES:** Reference specific parts of the documents when answering\n"
+                "- **STAY GROUNDED:** Every statement must be traceable back to the provided context"
+            )
+
+        level_up_grounding = ""
+        if level_up_mode:
+            level_up_grounding = (
+                "- **LEVEL UP+ MODE:** Go beyond basics - explain WHY, provide multiple approaches, "
+                "discuss trade-offs, and suggest next learning steps"
+            )
+
         prompt = f"""You are StudySync AI — a calm, knowledgeable, and helpful academic assistant for students.
 
 **🚨 CRITICAL GROUNDING RULE - YOU MUST FOLLOW THIS:**
@@ -168,7 +202,7 @@ Return a JSON array of content blocks:
 2. NO HTML tags, NO markdown markers, NO dollar signs in math blocks
 3. If explanation + equation: return TWO blocks (text first, then math)
 4. Use \\frac{{}}{{}}, \\sqrt{{}}, ^{{}}, _{{}} for LaTeX formatting
-{f'5. LEVEL UP+ MODE: Provide comprehensive coverage with {5-7 if level_up_mode else 3-5} key points, multiple examples, and expert insights' if level_up_mode else ''}
+{level_up_rule}
 
 **📚 UPLOADED DOCUMENT CONTEXT (YOUR ONLY SOURCE OF INFORMATION):**
 {context if context else "⚠️ NO DOCUMENTS UPLOADED - User needs to upload study materials first."}
@@ -180,12 +214,8 @@ Return a JSON array of content blocks:
 {query}
 
 **🚨 CRITICAL GROUNDING INSTRUCTIONS - READ CAREFULLY:**
-{'- **NO CONTEXT AVAILABLE:** The user has not uploaded any documents yet. You MUST respond with: "I don\'t have any documents to reference. Please upload your study materials (PDFs, notes, etc.) so I can help you with specific content from them."' if not context else f'''- **USE ONLY THE CONTEXT ABOVE:** Base your ENTIRE answer on the document context provided above
-- **NEVER USE EXTERNAL KNOWLEDGE:** Do not invent, assume, or recall information not present in the context
-- **IF INFORMATION IS MISSING:** If the context does not contain information to answer the question, respond with: "I don't have that specific information in your uploaded documents. The context I found discusses [briefly mention what the context contains], but doesn't cover [what the user asked about]. Please try rephrasing your question or upload additional materials."
-- **CITE YOUR SOURCES:** Reference specific parts of the documents when answering
-- **STAY GROUNDED:** Every statement must be traceable back to the provided context'''}
-{f'- **LEVEL UP+ MODE:** Go beyond basics - explain WHY, provide multiple approaches, discuss trade-offs, and suggest next learning steps' if level_up_mode else ''}
+{grounding_block}
+{level_up_grounding}
 
 Output ONLY the JSON array. No additional text."""
         

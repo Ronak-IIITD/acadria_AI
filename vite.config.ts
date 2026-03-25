@@ -18,10 +18,10 @@ export default defineConfig(({ mode }) => {
         port: 3000,
         host: '0.0.0.0',
         headers: {
-          // Fix Cross-Origin-Opener-Policy for Firebase Auth popup
+          // Keep popup-compatible policy for auth providers
           'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
           // Allow external scripts and CDNs
-          'Content-Security-Policy': `script-src ${scriptSrc} https://apis.google.com https://www.gstatic.com https://*.firebaseio.com https://*.googleapis.com https://cdn.jsdelivr.net https://aistudiocdn.com; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: https:;`
+          'Content-Security-Policy': `script-src ${scriptSrc} https://apis.google.com https://www.gstatic.com https://*.googleapis.com https://cdn.jsdelivr.net https://aistudiocdn.com; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: https:;`
         },
         // Exclude venv and other directories from file watching to prevent ENOSPC errors
         watch: {
@@ -45,7 +45,6 @@ export default defineConfig(({ mode }) => {
             manualChunks: {
               // Vendor chunks
               'vendor-react': ['react', 'react-dom'],
-              'vendor-firebase': ['firebase/app', 'firebase/auth'],
               'vendor-pdf': ['pdfjs-dist'],
               'vendor-katex': ['katex'],
               'vendor-highlight': ['highlight.js'],
@@ -57,7 +56,7 @@ export default defineConfig(({ mode }) => {
       },
     // Optimize dependencies
     optimizeDeps: {
-      include: ['react', 'react-dom', 'firebase/app', 'firebase/auth'],
+      include: ['react', 'react-dom'],
     },
     // Vitest configuration
     test: {
