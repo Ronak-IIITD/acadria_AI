@@ -46,7 +46,13 @@ __pycache__/
 .Python
 .venv/
 venv/
+backend/venv/
 ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage/
 
 # Internal documentation (AI-generated, not for repo)
 AGENTS.md
