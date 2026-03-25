@@ -76,6 +76,7 @@ async def upload_documents(
                 validate_file(file)
 
                 upload_progress[batch_id] = {
+                    "user_id": user_id,
                     "total": len(files_to_process),
                     "current": idx + 1,
                     "filename": file.filename,

@@ -526,6 +526,41 @@ You are in ENHANCED LEARNING MODE. Provide:
 6. **Industry Context**: Explain real-world applications and industry standards
 """
 
+        advanced_insights_line = "6. **Advanced Insights** - Best practices, common pitfalls, optimization tips" if level_up_mode else ""
+        next_steps_line = "7. **Next Steps** - Related topics to explore for deeper learning" if level_up_mode else ""
+        summary_line = "4-5 sentences with depth" if level_up_mode else "2-3 sentences"
+        key_points_line = "5-7 detailed points" if level_up_mode else "3-5 points"
+        examples_line = "Include 2-3 examples showing different approaches" if level_up_mode else "Provide clear example"
+        use_cases_line = "4-5 industry examples" if level_up_mode else "2-3 examples"
+        paragraph_style_line = "detailed but well-structured" if level_up_mode else "concise and scannable"
+        comment_style_line = "detailed " if level_up_mode else ""
+        multiple_examples_line = "multiple examples and" if level_up_mode else ""
+        inline_explanations_line = "* Add inline explanations for complex logic" if level_up_mode else ""
+        structure_suffix = " → advanced insights → next steps" if level_up_mode else ""
+        level_up_requirements_line = "- **LEVEL UP+ REQUIREMENTS:** Be thorough, provide expert-level insights, explain underlying principles, and guide deeper learning" if level_up_mode else ""
+
+        no_context_reminder = ""
+        if not context:
+            no_context_reminder = (
+                '**⚠️ IMPORTANT:** Since no document context was found, you MUST tell the user: '
+                '"I don\'t have any documents to reference. Please upload your study materials (PDFs, notes, etc.) so I can help you with specific content from them."'
+            )
+
+        context_instructions = ""
+        if not context:
+            context_instructions = (
+                '- **NO CONTEXT AVAILABLE:** The user has not uploaded any documents yet. You MUST respond with: '
+                '"I don\'t have any documents to reference. Please upload your study materials (PDFs, notes, etc.) so I can help you with specific content from them."'
+            )
+        else:
+            context_instructions = (
+                "- **USE ONLY THE CONTEXT ABOVE:** Base your ENTIRE answer on the document context provided above\n"
+                "- **NEVER USE EXTERNAL KNOWLEDGE:** Do not invent, assume, or recall information not present in the context\n"
+                "- **IF INFORMATION IS MISSING:** If the context does not contain information to answer the question, respond with: \"I don't have that specific information in your uploaded documents. The context I found discusses [briefly mention what the context contains], but doesn't cover [what the user asked about]. Please try rephrasing your question or upload additional materials.\"\n"
+                "- **CITE YOUR SOURCES:** Reference specific parts of the documents when answering\n"
+                "- **STAY GROUNDED:** Every statement must be traceable back to the provided context"
+            )
+
         # CRITICAL: Force model to return structured JSON with pure LaTeX and code blocks
         prompt = f"""You are StudySync AI — a calm, knowledgeable, and helpful academic assistant for students.
 
@@ -544,7 +579,7 @@ You MUST follow these formatting rules in EVERY response:
 4. ALL code examples MUST be in {default_language.upper()} unless explicitly asked otherwise
 5. Wrap ALL code in code blocks with proper language specification
 6. After explanations, ALWAYS provide real-world use cases
-7. Structure every response as: Heading → Summary → Key Points → Code Example → Use Cases{' → Advanced Insights (Level Up+ only)' if level_up_mode else ''}
+7. Structure every response as: Heading → Summary → Key Points → Code Example → Use Cases{structure_suffix}
 
 **CRITICAL FORMAT REQUIREMENT:**
 Return a JSON array of content blocks with this EXACT structure:
@@ -592,7 +627,7 @@ Return a JSON array of content blocks with this EXACT structure:
 **📚 UPLOADED DOCUMENT CONTEXT (YOUR ONLY SOURCE OF INFORMATION):**
 {context if context else "⚠️ NO DOCUMENTS UPLOADED - User needs to upload study materials first."}
 
-{'' if context else '**⚠️ IMPORTANT:** Since no document context was found, you MUST tell the user: "I don\'t have any documents to reference. Please upload your study materials (PDFs, notes, etc.) so I can help you with specific content from them."'}
+{no_context_reminder}
 
 **Chat History:**
 {self._format_chat_history(user_id)}
@@ -601,37 +636,33 @@ Return a JSON array of content blocks with this EXACT structure:
 {query}
 
 **🚨 CRITICAL GROUNDING INSTRUCTIONS - READ CAREFULLY:**
-{'- **NO CONTEXT AVAILABLE:** The user has not uploaded any documents yet. You MUST respond with: "I don\'t have any documents to reference. Please upload your study materials (PDFs, notes, etc.) so I can help you with specific content from them."' if not context else f'''- **USE ONLY THE CONTEXT ABOVE:** Base your ENTIRE answer on the document context provided above
-- **NEVER USE EXTERNAL KNOWLEDGE:** Do not invent, assume, or recall information not present in the context
-- **IF INFORMATION IS MISSING:** If the context does not contain information to answer the question, respond with: "I don't have that specific information in your uploaded documents. The context I found discusses [briefly mention what the context contains], but doesn't cover [what the user asked about]. Please try rephrasing your question or upload additional materials."
-- **CITE YOUR SOURCES:** Reference specific parts of the documents when answering
-- **STAY GROUNDED:** Every statement must be traceable back to the provided context'''}
+{context_instructions}
 - **MANDATORY: Follow the system formatting rules above**
 - **YOU MUST USE {default_language.upper()} for ALL code examples unless explicitly asked otherwise**
 - **RESPONSE STRUCTURE (MUST FOLLOW):**
   1. **Bold Heading** with topic name
-  2. Brief summary paragraph ({f'4-5 sentences with depth' if level_up_mode else '2-3 sentences'})
-  3. **Key Points** section with bullet points ({f'5-7 detailed points' if level_up_mode else '3-5 points'})
-  4. Code example in {default_language.upper()} (if relevant) - {f'Include 2-3 examples showing different approaches' if level_up_mode else 'Provide clear example'}
-  5. **Real-World Use Cases** section with practical applications ({f'4-5 industry examples' if level_up_mode else '2-3 examples'})
-  {f'6. **Advanced Insights** - Best practices, common pitfalls, optimization tips' if level_up_mode else ''}
-  {f'7. **Next Steps** - Related topics to explore for deeper learning' if level_up_mode else ''}
+  2. Brief summary paragraph ({summary_line})
+  3. **Key Points** section with bullet points ({key_points_line})
+  4. Code example in {default_language.upper()} (if relevant) - {examples_line}
+  5. **Real-World Use Cases** section with practical applications ({use_cases_line})
+  {advanced_insights_line}
+  {next_steps_line}
 - **FORMATTING IN TEXT BLOCKS:**
   * Use **bold** for all headings and subheadings (wrap in **)
   * Use • for main bullet points
   * Use ◦ for sub-bullets (indented with spaces)
   * Use \\n for line breaks between sections
-  * Keep paragraphs {'detailed but well-structured' if level_up_mode else 'concise and scannable'}
+  * Keep paragraphs {paragraph_style_line}
 - **CODE REQUIREMENTS:**
   * ALL code must be in {default_language.upper()} language
-  * Include {'detailed' if level_up_mode else ''} comments explaining key parts
+  * Include {comment_style_line}comments explaining key parts
   * Use proper {default_language.upper()} syntax and conventions
-  * Provide {'multiple examples and' if level_up_mode else ''} complete, runnable examples when possible
-  {f'* Add inline explanations for complex logic' if level_up_mode else ''}
+  * Provide {multiple_examples_line} complete, runnable examples when possible
+  {inline_explanations_line}
 - Analyze the context to match the exact programming style shown
 - If context doesn't contain relevant information, say so clearly
-- Structure: text → code → text (use cases){' → advanced insights → next steps' if level_up_mode else ''}
-{f'- **LEVEL UP+ REQUIREMENTS:** Be thorough, provide expert-level insights, explain underlying principles, and guide deeper learning' if level_up_mode else ''}
+- Structure: text → code → text (use cases){structure_suffix}
+{level_up_requirements_line}
 
 If you cannot produce JSON exactly as specified, output an error object:
 {{"error":"reason for failure"}}
