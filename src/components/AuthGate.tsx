@@ -54,7 +54,7 @@ const AuthGate = ({ children }: AuthGateProps) => {
     }
     const syncAuth = async () => {
       if (isSignedIn && clerkUser) {
-        const token = await getClerkToken();
+        const token = await getClerkToken(getToken);
         if (token) {
           localStorage.setItem('clerk-token', token);
         }

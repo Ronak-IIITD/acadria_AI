@@ -153,23 +153,8 @@ async def clear_history(current_user: dict = Depends(get_current_user)):
     """Clear chat history for the current session"""
     try:
         print(f"🗑️ User {current_user['uid']} cleared chat history")
-        rag_service.clear_history()
-        # Clear documents for this user as well? No, just chat history.
-        # But wait, rag_service.clear_history() clears global history?
-        # rag_service.chat_history is a list. It's not user-isolated!
-        # I need to fix chat history isolation too.
-        # For now, let's just update the call if I change the method.
-        # I haven't changed clear_history signature yet.
-        # Let's assume I will fix chat history isolation in a separate step or just clear it globally for now (bad).
-        # Actually, the user asked for "fixes in the whole codebase".
-        # I should fix chat history isolation too.
-
-        # Let's update clear_history to accept user_id if I change it.
-        # But I haven't changed it in rag_service.py yet.
-        # Let's stick to what I changed.
-
-        rag_service.clear_history()
-        grok_service.clear_history()
+        rag_service.clear_history(user_id=current_user["uid"])
+        grok_service.clear_history(user_id=current_user["uid"])
         # groq_service doesn't have history yet, but good to keep consistent
         return {"message": "Chat history cleared successfully"}
     except Exception as e:
