@@ -43,7 +43,7 @@ async def chat(message: ChatMessage, current_user: dict = Depends(get_current_us
         # Route to appropriate service based on model
         if model == "grok":
             # Use Grok 4 service
-            context, sources = rag_service._retrieve_context(
+            context, sources = await rag_service._retrieve_context(
                 message.text,
                 user_id=current_user["uid"],
                 top_k=5 if level_up_mode else 3,
@@ -62,7 +62,7 @@ async def chat(message: ChatMessage, current_user: dict = Depends(get_current_us
             or model.startswith("gemma")
         ):
             # Use Groq Service (Llama 3, Mixtral, Gemma)
-            context, sources = rag_service._retrieve_context(
+            context, sources = await rag_service._retrieve_context(
                 message.text,
                 user_id=current_user["uid"],
                 top_k=5 if level_up_mode else 3,
@@ -77,39 +77,39 @@ async def chat(message: ChatMessage, current_user: dict = Depends(get_current_us
             )
         elif model == "gemini-pro":
             # Use Gemini 1.5 Pro
-            rag_service.set_model("gemini-1.5-pro")
             response = await rag_service.generate_response(
                 query=message.text,
                 user_id=current_user["uid"],
                 use_web_search=message.use_web_search,
                 level_up_mode=level_up_mode,
+                model_name="gemini-1.5-pro",
             )
         elif model == "gemini-2.0-flash-exp":
             # Use Gemini 2.0 Flash Experimental
-            rag_service.set_model("gemini-2.0-flash-exp")
             response = await rag_service.generate_response(
                 query=message.text,
                 user_id=current_user["uid"],
                 use_web_search=message.use_web_search,
                 level_up_mode=level_up_mode,
+                model_name="gemini-2.0-flash-exp",
             )
         elif model in ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-pro"]:
             # Use Gemini 2.5/3.0 models
-            rag_service.set_model(model)
             response = await rag_service.generate_response(
                 query=message.text,
                 user_id=current_user["uid"],
                 use_web_search=message.use_web_search,
                 level_up_mode=level_up_mode,
+                model_name=model,
             )
         else:
             # Use Gemini 1.5 Flash (default)
-            rag_service.set_model("gemini-1.5-flash")
             response = await rag_service.generate_response(
                 query=message.text,
                 user_id=current_user["uid"],
                 use_web_search=message.use_web_search,
                 level_up_mode=level_up_mode,
+                model_name="gemini-1.5-flash",
             )
 
         return response
@@ -153,7 +153,7 @@ async def clear_history(current_user: dict = Depends(get_current_user)):
     """Clear chat history for the current session"""
     try:
         print(f"🗑️ User {current_user['uid']} cleared chat history")
-        rag_service.clear_history(user_id=current_user["uid"])
+        await rag_service.clear_history(user_id=current_user["uid"])
         grok_service.clear_history(user_id=current_user["uid"])
         # groq_service doesn't have history yet, but good to keep consistent
         return {"message": "Chat history cleared successfully"}
@@ -165,9 +165,9 @@ async def clear_history(current_user: dict = Depends(get_current_user)):
 async def rag_debug(current_user: dict = Depends(get_current_user)):
     """Debug endpoint to check RAG store status"""
     try:
-        info = rag_service.get_document_info(user_id=current_user["uid"])
+        info = await rag_service.get_document_info(user_id=current_user["uid"])
         return {
-            "document_count": rag_service.get_document_count(
+            "document_count": await rag_service.get_document_count(
                 user_id=current_user["uid"]
             ),
             "details": info,

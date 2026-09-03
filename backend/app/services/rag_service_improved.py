@@ -1,11 +1,11 @@
 import os
-import json
 import time
 from typing import List, Dict, Any, Optional
 import google.generativeai as genai
 from app.models.schemas import ChatResponse, ContentBlock
 from app.utils.ai_validator import validate_ai_blocks, extract_suggestions_and_sources
 from app.services.embedding_service import get_embedding_service
+from app.services.rag_storage import get_rag_storage_instance, DocumentChunk, ChatMessage
 from app.config import MAX_RETRIES, INITIAL_RETRY_DELAY, MAX_RETRY_DELAY, FALLBACK_MODEL
 
 
@@ -19,6 +19,7 @@ class RAGServiceImproved:
     3. Improved prompt engineering for grounded responses
     4. Better fallback mechanisms when context is low quality
     5. Context quality scoring and filtering
+    6. Uses modular storage abstraction (local JSON for dev, PostgreSQL+pgvector for prod)
     """
 
     def __init__(self):
@@ -36,13 +37,8 @@ class RAGServiceImproved:
         # Initialize embedding service
         self.embedding_service = get_embedding_service()
 
-        # In-memory storage (partitioned by user_id)
-        self.documents: Dict[str, List[Dict[str, Any]]] = {}
-        self.chat_history: Dict[str, List[Dict[str, str]]] = {}
-
-        # Persistence
-        self.storage_file = "data/rag_storage.json"
-        self._load_state()
+        # Initialize storage abstraction (local JSON for dev, PostgreSQL+pgvector for prod)
+        self.storage = get_rag_storage_instance()
 
         # Context retrieval settings
         self.min_similarity_threshold = 0.3  # Minimum similarity score to consider
@@ -69,12 +65,28 @@ class RAGServiceImproved:
         except Exception as e:
             print(f"⚠️  Error switching model: {e}, keeping current model")
 
+    def _get_model(self, model_name: Optional[str] = None):
+        """Get a model instance for the given model name (request-local, no singleton mutation)."""
+        model_mapping = {
+            "gemini-1.5-flash": "gemini-1.5-flash-latest",
+            "gemini-1.5-pro": "gemini-1.5-pro-latest",
+            "gemini-flash": "gemini-1.5-flash-latest",
+            "gemini-2.0-flash-exp": "gemini-2.0-flash-exp",
+            "gemini-2.5-flash": "gemini-2.5-flash-latest",
+            "gemini-2.5-pro": "gemini-2.5-pro-latest",
+            "gemini-3-pro": "gemini-3-pro-preview",
+        }
+
+        actual_model = model_mapping.get(model_name or self.model_name, model_name or self.model_name)
+        return genai.GenerativeModel(actual_model), actual_model
+
     async def generate_response(
         self,
         query: str,
         user_id: str,
         use_web_search: bool = False,
         level_up_mode: bool = False,
+        model_name: Optional[str] = None,
     ) -> ChatResponse:
         """
         Generate AI response with IMPROVED context retrieval and grounding.
@@ -84,11 +96,12 @@ class RAGServiceImproved:
         - Context quality scoring
         - Better fallback mechanisms
         - Stricter grounding prompts
+        - Request-local model selection (no singleton mutation)
         """
         try:
             # STEP 1: Retrieve context with hybrid search
             top_k = 5 if level_up_mode else 3
-            context, sources, context_quality = self._retrieve_context_hybrid(
+            context, sources, context_quality = await self._retrieve_context_hybrid(
                 query, user_id, top_k=top_k
             )
 
@@ -129,17 +142,17 @@ class RAGServiceImproved:
 
             # STEP 5: Generate response with retry logic
             retry_delay = INITIAL_RETRY_DELAY
-            original_model = self.model_name
+            model, actual_model = self._get_model(model_name)
             raw_answer = None
             last_error = None
 
             for attempt in range(MAX_RETRIES):
                 try:
                     print(
-                        f"🤖 Generating response with {self.model_name} (attempt {attempt + 1}/{MAX_RETRIES})"
+                        f"🤖 Generating response with {actual_model} (attempt {attempt + 1}/{MAX_RETRIES})"
                     )
 
-                    response = self.model.generate_content(
+                    response = model.generate_content(
                         prompt,
                         generation_config=genai.types.GenerationConfig(
                             response_mime_type="application/json",
@@ -162,9 +175,9 @@ class RAGServiceImproved:
                     )
                     raw_answer = response.text
 
-                    if self.model_name != original_model:
+                    if actual_model != self.model_name:
                         print(
-                            f"✅ Successfully generated response using fallback model: {self.model_name}"
+                            f"✅ Successfully generated response using model: {actual_model}"
                         )
 
                     break  # Success
@@ -194,10 +207,10 @@ class RAGServiceImproved:
                         time.sleep(retry_delay)
                         retry_delay = min(retry_delay * 2, MAX_RETRY_DELAY)
 
-                        if attempt == 1 and self.model_name != FALLBACK_MODEL:
+                        if attempt == 1 and actual_model != FALLBACK_MODEL:
                             print(f"🔄 Switching to fallback model: {FALLBACK_MODEL}")
                             try:
-                                self.set_model(FALLBACK_MODEL)
+                                model, actual_model = self._get_model(FALLBACK_MODEL)
                             except:
                                 pass
                         continue
@@ -287,7 +300,7 @@ class RAGServiceImproved:
                 sources=[],
             )
 
-    def _retrieve_context_hybrid(
+    async def _retrieve_context_hybrid(
         self, query: str, user_id: str, top_k: int = 3
     ) -> tuple[str, List[Dict[str, Any]], float]:
         """
@@ -299,7 +312,7 @@ class RAGServiceImproved:
         - Scores context quality
         - Better handling of edge cases
         """
-        user_docs = self.documents.get(user_id, [])
+        user_docs = await self.storage.get_chunks(user_id)
         if not user_docs:
             print(f"⚠️  No documents in store for user {user_id}")
             return "", [], 0.0
@@ -341,18 +354,18 @@ class RAGServiceImproved:
 
                 if query_embedding:
                     for doc in user_docs:
-                        doc_embedding = doc.get("embedding")
+                        doc_embedding = doc.embedding
                         if doc_embedding is None:
                             continue
 
-                        content_type = doc.get("content_type", "document")
+                        content_type = doc.content_type
 
                         # Filter highlights if needed
                         if is_highlight_query:
                             if requested_color:
                                 if not (
                                     content_type == "highlight"
-                                    and doc.get("highlight_color") == requested_color
+                                    and doc.highlight_color == requested_color
                                 ):
                                     continue
                             else:
@@ -440,7 +453,7 @@ class RAGServiceImproved:
                 return context, sources, 0.3
             return "", [], 0.0
 
-    def _retrieve_context(
+    async def _retrieve_context(
         self, query: str, user_id: str, top_k: int = 3
     ) -> tuple[str, List[Dict[str, Any]]]:
         """
@@ -451,16 +464,16 @@ class RAGServiceImproved:
 
         Returns: (context, sources) tuple
         """
-        context, sources, _ = self._retrieve_context_hybrid(query, user_id, top_k)
+        context, sources, _ = await self._retrieve_context_hybrid(query, user_id, top_k)
         return context, sources
 
     def _keyword_search_improved(
         self,
         query_lower: str,
-        user_docs: List[Dict],
+        user_docs: List[DocumentChunk],
         is_highlight_query: bool,
         requested_color: Optional[str],
-    ) -> List[tuple[float, Dict, str]]:
+    ) -> List[tuple[float, DocumentChunk, str]]:
         """Improved keyword search with better scoring"""
         stop_words = {
             "what",
@@ -521,21 +534,21 @@ class RAGServiceImproved:
 
         scored_docs = []
         for doc in user_docs:
-            content_type = doc.get("content_type", "document")
+            content_type = doc.content_type
 
             # Filter highlights
             if is_highlight_query:
                 if requested_color:
                     if not (
                         content_type == "highlight"
-                        and doc.get("highlight_color") == requested_color
+                        and doc.highlight_color == requested_color
                     ):
                         continue
                 else:
                     if content_type != "highlight":
                         continue
 
-            text = doc.get("content", "").lower()
+            text = doc.content.lower()
 
             # Scoring based on keyword matches
             score = 0.0
@@ -548,7 +561,7 @@ class RAGServiceImproved:
                     score += 0.05
 
             # Boost for chunk position
-            chunk_index = doc.get("chunk_index", 0)
+            chunk_index = doc.chunk_index
             if chunk_index < 3:
                 score += 0.05 * (3 - chunk_index)
 
@@ -563,7 +576,7 @@ class RAGServiceImproved:
         return scored_docs
 
     def _build_context_from_docs(
-        self, docs: List[Dict[str, Any]]
+        self, docs: List[DocumentChunk]
     ) -> tuple[str, List[Dict[str, Any]]]:
         """Build context string and metadata from selected documents"""
         if not docs:
@@ -571,19 +584,19 @@ class RAGServiceImproved:
 
         context_parts = []
         for doc in docs:
-            if doc.get("content_type") == "highlight":
-                color = doc.get("highlight_color", "unknown")
-                count = doc.get("highlight_count", 0)
+            if doc.content_type == "highlight":
+                color = doc.highlight_color or "unknown"
+                count = doc.highlight_count or 0
                 context_parts.append(
-                    f"**{color.upper()} HIGHLIGHTS ({count} sections):**\n{doc['content']}"
+                    f"**{color.upper()} HIGHLIGHTS ({count} sections):**\n{doc.content}"
                 )
             else:
-                context_parts.append(doc["content"])
+                context_parts.append(doc.content)
 
         context = "\n\n---\n\n".join(context_parts)
 
         sources = [
-            {"title": doc["filename"], "page": doc.get("chunk_index", 0) + 1}
+            {"title": doc.filename, "page": doc.chunk_index + 1}
             for doc in docs
         ]
 
@@ -830,129 +843,65 @@ Output the JSON array now:"""
 
         return ""
 
-    def clear_history(self, user_id: str = None):
+    async def clear_history(self, user_id: str = None):
         """Clear chat history"""
         if user_id:
-            if user_id in self.chat_history:
-                self.chat_history[user_id] = []
-                print(f"🧹 Cleared chat history for user {user_id}")
+            await self.storage.clear_chat_history(user_id)
+            print(f"🧹 Cleared chat history for user {user_id}")
         else:
-            self.chat_history = {}
-            print("🧹 Cleared ALL chat history")
-        self._save_state()
+            # Clear all users' chat history - not directly supported, would need to iterate
+            print("🧹 Clearing ALL chat history not directly supported with new storage")
+        # No need to call _save_state - storage handles persistence
 
-    def add_documents_to_store(self, chunks: List[Dict[str, Any]], user_id: str):
+    async def add_documents_to_store(self, chunks: List[Dict[str, Any]], user_id: str):
         """Add document chunks to store"""
         if not chunks:
             print("⚠️  Warning: Attempted to add empty chunks")
             return
 
-        if user_id not in self.documents:
-            self.documents[user_id] = []
-
-        self.documents[user_id].extend(chunks)
+        # Convert dict chunks to DocumentChunk objects
+        doc_chunks = [DocumentChunk(**chunk) for chunk in chunks]
+        await self.storage.add_chunks(doc_chunks, user_id)
         print(
-            f"📚 Added {len(chunks)} chunks for user {user_id}. Total: {len(self.documents[user_id])}"
+            f"📚 Added {len(chunks)} chunks for user {user_id}. Total: {await self.storage.get_chunk_count(user_id)}"
         )
+        # No need to call _save_state - storage handles persistence
 
-        self._save_state()
-
-    def get_document_count(self, user_id: str = None) -> int:
+    async def get_document_count(self, user_id: str = None) -> int:
         """Get document count"""
         if user_id:
-            return len(self.documents.get(user_id, []))
-        return sum(len(docs) for docs in self.documents.values())
+            return await self.storage.get_chunk_count(user_id)
+        # For global count, would need to iterate all users - not directly supported
+        return 0
 
-    def get_document_info(self, user_id: str = None) -> Dict[str, Any]:
+    async def get_document_info(self, user_id: str = None) -> Dict[str, Any]:
         """Get document info for debugging"""
         if user_id:
-            docs_to_check = self.documents.get(user_id, [])
-        else:
-            docs_to_check = [
-                doc for user_docs in self.documents.values() for doc in user_docs
-            ]
+            return await self.storage.get_document_info(user_id)
+        # For global info, would need to iterate all users - not directly supported
+        return {"total": 0, "files": []}
 
-        if not docs_to_check:
-            return {"total": 0, "files": []}
-
-        files = {}
-        for doc in docs_to_check:
-            filename = doc.get("filename", "unknown")
-            if filename not in files:
-                files[filename] = {
-                    "filename": filename,
-                    "chunks": 0,
-                    "has_embeddings": 0,
-                    "content_types": {},
-                }
-            files[filename]["chunks"] += 1
-            if doc.get("embedding") is not None:
-                files[filename]["has_embeddings"] += 1
-            content_type = doc.get("content_type", "document")
-            files[filename]["content_types"][content_type] = (
-                files[filename]["content_types"].get(content_type, 0) + 1
-            )
-
-        return {"total": len(docs_to_check), "files": list(files.values())}
-
+    # _save_state and _load_state are no longer needed - storage handles persistence
+    # Keeping them as no-ops for backward compatibility
     def _save_state(self):
-        """Save to disk"""
-        try:
-            os.makedirs(os.path.dirname(self.storage_file), exist_ok=True)
-            state = {"documents": self.documents, "chat_history": self.chat_history}
-            temp_file = f"{self.storage_file}.tmp"
-            with open(temp_file, "w") as f:
-                json.dump(state, f)
-            os.replace(temp_file, self.storage_file)
-            print("💾 RAG state saved")
-        except Exception as e:
-            print(f"❌ Failed to save state: {e}")
+        """No-op - storage handles persistence"""
+        pass
 
     def _load_state(self):
-        """Load from disk"""
-        if not os.path.exists(self.storage_file):
-            return
+        """No-op - storage handles persistence"""
+        pass
 
-        try:
-            with open(self.storage_file, "r") as f:
-                state = json.load(f)
-
-            self.documents = state.get("documents", {})
-            self.chat_history = state.get("chat_history", {})
-
-            total_docs = sum(len(docs) for docs in self.documents.values())
-            print(
-                f"📂 Loaded RAG state: {total_docs} chunks, {len(self.chat_history)} sessions"
-            )
-        except Exception as e:
-            print(f"❌ Failed to load state: {e}")
-
-    def clear_documents(self, user_id: str = None):
+    async def clear_documents(self, user_id: str = None):
         """Clear documents"""
         if user_id:
-            if user_id in self.documents:
-                self.documents[user_id] = []
-                print(f"🧹 Cleared documents for user {user_id}")
+            await self.storage.clear_user_chunks(user_id)
+            print(f"🧹 Cleared documents for user {user_id}")
         else:
-            self.documents = {}
-            print("🧹 Cleared ALL documents")
+            print("🧹 Clearing ALL documents not directly supported with new storage")
 
-    def remove_document_by_id(self, document_id: str, user_id: str) -> int:
+    async def remove_document_by_id(self, document_id: str, user_id: str) -> int:
         """Remove document chunks by ID"""
-        if user_id not in self.documents:
-            return 0
-
-        user_docs = self.documents[user_id]
-        initial_count = len(user_docs)
-        self.documents[user_id] = [
-            doc for doc in user_docs if doc.get("document_id") != document_id
-        ]
-        removed_count = initial_count - len(self.documents[user_id])
-
-        if removed_count > 0:
-            print(f"🗑️  Removed {removed_count} chunks for document {document_id}")
-
-        return removed_count
+        return await self.storage.remove_document_chunks(document_id, user_id)
 
 
 # Singleton instance

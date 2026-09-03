@@ -1,4 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
 import type { StudyFile, ChatMessage, ContentBlock } from '../types';
 import * as pdfjsLib from 'pdfjs-dist/build/pdf.mjs';
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
@@ -29,13 +28,29 @@ declare const PptxGenJS: any;
 // Configure the PDF.js worker to use the bundled worker file
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
-const API_KEY = import.meta.env.VITE_API_KEY;
+// NOTE: No GoogleGenAI client instantiated in browser.
+// All AI calls are routed through authenticated backend endpoints.
+// VITE_API_KEY is intentionally removed to prevent browser-side credential exposure.
+// The backend (FastAPI) handles all Gemini/Groq/Grok provider calls using secret keys.
 
-if (!API_KEY || API_KEY === 'your_gemini_api_key_here') {
-    console.warn("⚠️ VITE_API_KEY not set in .env file. AI features will not work. Get your key at https://makersuite.google.com/app/apikey");
-}
-
-const ai = new GoogleGenAI({ apiKey: API_KEY || 'placeholder-key' });
+/**
+ * Decodes a Base64 string to a UTF-8 string.
+ * @param base64 The Base64 encoded string.
+ * @returns The decoded string.
+ */
+const decodeBase64 = (base64: string): string => {
+    try {
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        return new TextDecoder('utf-8').decode(bytes);
+    } catch (e) {
+        console.error("Failed to decode base64 content:", e);
+        return "";
+    }
+};
 
 /**
  * Decodes a Base64 string to a UTF-8 string.
@@ -284,61 +299,68 @@ export const getAiSummary = async (
     type: 'chat' | 'document',
     content: ChatMessage[] | StudyFile
 ): Promise<{ blocks: ContentBlock[] }> => {
-    if (!API_KEY || API_KEY === 'placeholder-key') {
-        return Promise.resolve({
-            blocks: [{ type: 'text', value: "This is a mock summary as the API key is not configured." }]
-        });
-    }
+    // All AI summary generation is now handled via backend API
+    // to avoid browser-side API key exposure
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
     try {
-        let prompt = '';
-        let summaryTitle = '### Summary';
+        const headers = await getAuthHeaders();
 
         if (type === 'chat') {
-            const chatHistory = formatChatHistory(content as ChatMessage[]);
+            const chatMessageArray = content as ChatMessage[];
+            const chatHistory = formatChatHistory(chatMessageArray);
             if (!chatHistory) {
                 return { blocks: [{ type: 'text', value: "There is no chat history to summarize." }] };
             }
-            summaryTitle = '### Summary of Chat History';
-            prompt = `
-                You are a helpful assistant. Your task is to summarize the provided chat conversation between a "user" and an "ai". 
-                Focus on the key questions asked by the user and the main points of the AI's answers. 
-                Do not summarize any user requests for summaries.
-                Present the summary in a clear, concise, and well-structured format using Markdown.
 
-                Chat History:
-                ---
-                ${chatHistory}
-                ---
+            const response = await fetch(`${BACKEND_URL}/api/chat`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    text: "Summarize our chat conversation above. Focus on key questions and main points. Provide summary in markdown format.",
+                    model: "gemini",
+                    level_up_mode: false,
+                }),
+            });
 
-                Summary:
-            `;
-        } else { // type === 'document'
+            if (response.ok) {
+                const data = await response.json();
+                return {
+                    blocks: data.blocks || [{ type: 'text', value: "No summary generated." }],
+                    suggestions: data.suggestions || [],
+                };
+            } else {
+                throw new Error("Backend API failed");
+            }
+        } else {
+            // type === 'document'
             const file = content as StudyFile;
-            summaryTitle = `### Summary of ${file.name}`;
             let textContent: string | null = null;
 
-            switch (file.type) {
-                case 'TXT':
-                case 'MD':
-                case 'RTF':
-                    textContent = file.content ? decodeBase64(file.content) : null;
-                    break;
-                case 'PDF': textContent = file.content ? await parsePdfContent(file.content) : null; break;
-                case 'DOCX': textContent = file.content ? await parseDocxContent(file.content) : null; break;
-                case 'PPTX': textContent = file.content ? await parsePptxContent(file.content) : null; break;
+            // For text-based files, extract from base64 (client-side parsing is OK for display,
+            # but the actual AI summary goes through backend)
+            if (file.type === 'TXT' || file.type === 'MD' || file.type === 'RTF') {
+                textContent = file.content ? decodeBase64(file.content) : null;
+            } else {
+                // For PDF/DOCX/PPTX, we extract text client-side for the summary request,
+                # but note: in production, the backend should handle full extraction
+                switch (file.type) {
+                    case 'PDF': textContent = file.content ? await parsePdfContent(file.content) : null; break;
+                    case 'DOCX': textContent = file.content ? await parseDocxContent(file.content) : null; break;
+                    case 'PPTX': textContent = file.content ? await parsePptxContent(file.content) : null; break;
+                    default: break;
+                }
             }
 
             if (!textContent || !textContent.trim()) {
                 return { blocks: [{ type: 'text', value: `Sorry, I could not read any content from the document "${file.name}" to summarize.` }] };
             }
 
-            // For large documents, intelligently truncate to fit within context limits
-            const MAX_SUMMARY_CHARS = 80000; // ~100k tokens for Gemini 2.5 Flash
+            // Truncate if very large (client-side preprocessing for the API request)
+            const MAX_SUMMARY_CHARS = 50000;
             if (textContent.length > MAX_SUMMARY_CHARS) {
                 console.warn(`Document ${file.name} is very large (${textContent.length} chars). Using first ${MAX_SUMMARY_CHARS} characters for summary.`);
 
-                // Take content from beginning, middle, and end for a comprehensive summary
                 const chunkSize = Math.floor(MAX_SUMMARY_CHARS / 3);
                 const beginning = textContent.substring(0, chunkSize);
                 const middleStart = Math.floor((textContent.length - chunkSize) / 2);
@@ -348,33 +370,27 @@ export const getAiSummary = async (
                 textContent = `${beginning}\n\n[... content omitted for brevity ...]\n\n${middle}\n\n[... content omitted for brevity ...]\n\n${end}`;
             }
 
-            prompt = `
-                You are a helpful assistant. Your task is to provide a comprehensive summary of the following document. 
-                Extract the key topics, main arguments, and important conclusions. 
-                Structure the summary using Markdown with headings, subheadings, and bullet points for clarity.
-                ${textContent.includes('[... content omitted for brevity ...]') ? '\n**Note**: This is a very large document. The summary is based on representative sections from the beginning, middle, and end.' : ''}
+            const response = await fetch(`${BACKEND_URL}/api/chat`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    text: `Summarize the following document. Extract key topics, main arguments, and important conclusions. Structure using Markdown with headings, subheadings, and bullet points. Document: ${file.name}\n\n${textContent}`,
+                    model: "gemini",
+                    level_up_mode: false,
+                }),
+            });
 
-                Document Name: ${file.name}
-                Document Size: ${textContent.length} characters
-                ---
-                Document Content:
-                ${textContent}
-                ---
-
-                Summary of ${file.name}:
-            `;
+            if (response.ok) {
+                const data = await response.json();
+                return {
+                    blocks: data.blocks || [{ type: 'text', value: "No summary generated." }],
+                    suggestions: data.suggestions || [],
+                };
+            } else {
+                throw new Error("Backend API failed");
+            }
         }
-
-        const response = await ai.models.generateContent({
-            model: 'gemini-1.5-flash',
-            contents: prompt,
-        });
-
-        // Return as structured blocks (plain text summary)
-        const summaryText = `${summaryTitle}\n\n${response.text}`;
-        return { blocks: [{ type: 'text', value: summaryText }] };
-
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error getting AI summary:", error);
         return { blocks: [{ type: 'text', value: "Sorry, I encountered an error while trying to generate the summary." }] };
     }
@@ -462,249 +478,17 @@ export const getAiResponse = async (
         console.warn('⚠️  Backend API not available, using frontend fallback:', error);
     }
 
-    // Fallback to frontend processing (keep existing logic for now)
+    // Frontend AI fallback intentionally removed.
     // This uses the old text-based approach
-    if (!API_KEY || API_KEY === 'placeholder-key') {
-        console.error('❌ API KEY NOT CONFIGURED! Set VITE_API_KEY in .env file');
-        return Promise.resolve({
-            blocks: [
-                {
-                    type: 'text' as const,
-                    value: "⚠️ API key is not configured. Please set VITE_API_KEY in your .env file. Get your key at https://makersuite.google.com/app/apikey"
-                }
-            ],
-            suggestions: [],
-            sources: [],
-        });
-    }
+    // Frontend AI fallback intentionally removed.
+    // All AI calls are routed through authenticated backend endpoints
+    // to prevent browser-side API key exposure. If the backend is unavailable,
+    # the user should try again later or check their connection.
+    // Frontend calls using browser-owned API keys (VITE_API_KEY) are
+    # intentionally disabled. The backend (FastAPI) handles all provider calls
+    # using secret keys stored server-side.
 
-    console.log('🔑 Using API key for frontend fallback (first 10 chars):', API_KEY.substring(0, 10) + '...');
-
-    try {
-        const contentChunks: string[] = [];
-        const unreadableFiles: string[] = [];
-        const MAX_CONTEXT_CHARS = 80000;
-        const MAX_CHUNKS_PER_FILE = 6;
-        let totalContextSize = 0;
-
-        for (const file of contextFiles) {
-            let textContent: string | null = null;
-            switch (file.type) {
-                case 'TXT':
-                case 'MD':
-                case 'RTF':
-                    textContent = file.content ? decodeBase64(file.content) : null;
-                    break;
-                case 'PDF': textContent = file.content ? await parsePdfContent(file.content) : null; break;
-                case 'DOCX': textContent = file.content ? await parseDocxContent(file.content) : null; break;
-                case 'PPTX': textContent = file.content ? await parsePptxContent(file.content) : null; break;
-                default: break;
-            }
-
-            if (textContent && textContent.trim()) {
-                const allChunks = chunkText(textContent);
-                if (allChunks.length > 0) {
-                    const relevantChunks = findRelevantChunks(allChunks, question, MAX_CHUNKS_PER_FILE);
-
-                    let fileContextAdded = false;
-                    for (let i = 0; i < relevantChunks.length; i++) {
-                        const chunk = relevantChunks[i];
-                        const chunkWithHeader = `### Document: ${file.name} (Part ${i + 1} of ${relevantChunks.length}) ###\n\n${chunk}`;
-
-                        if (totalContextSize + chunkWithHeader.length > MAX_CONTEXT_CHARS) {
-                            console.warn(`Context limit reached. Skipping remaining chunks from ${file.name}`);
-                            break;
-                        }
-
-                        contentChunks.push(chunkWithHeader);
-                        totalContextSize += chunkWithHeader.length;
-                        fileContextAdded = true;
-                    }
-
-                    if (!fileContextAdded) {
-                        unreadableFiles.push(file.name);
-                    }
-                } else {
-                    unreadableFiles.push(file.name);
-                }
-            } else {
-                unreadableFiles.push(file.name);
-            }
-        }
-
-        if (contentChunks.length === 0 && contextFiles.length > 0 && !performWebSearch) {
-            const message = `Sorry, I could not read the content from the uploaded documents: ${unreadableFiles.join(', ')}. Please try other files.`;
-            return {
-                blocks: [{ type: 'text' as const, value: message }],
-                suggestions: [],
-                sources: []
-            };
-        }
-
-        const context = contentChunks.join('\n\n---\n\n');
-
-        console.log(`Context size: ${totalContextSize} characters, ${contentChunks.length} chunks from ${contextFiles.length} file(s)`);
-
-        // Use structured JSON prompt with grounding
-        const prompt = `You are Acadira AI — a calm, knowledgeable, and helpful academic assistant for students.
-
-**🚨 CRITICAL GROUNDING RULE - YOU MUST FOLLOW THIS:**
-You answer questions using ONLY the content provided in the uploaded documents below.
-Do NOT hallucinate or invent facts. Do NOT use external knowledge.
-If the answer is not found in the context below, you MUST politely say: "I don't have that information in your uploaded notes. Please upload relevant documents or rephrase your question."
-
-You are an assistant that outputs ONLY JSON. ALWAYS return valid JSON (no commentary, no extra text).
-
-**CRITICAL FORMAT REQUIREMENT:**
-Return a JSON array of content blocks with this EXACT structure:
-[
-  {"type":"text", "value":"plain text explanation (no LaTeX)"},
-  {"type":"math", "value":"PURE_LATEX_EXPRESSION (no $, no $$, no HTML)"},
-  {"type":"code", "value":"code content", "language":"javascript", "filename":"optional.js"}
-]
-
-**SUPPORTED BLOCK TYPES:**
-1. **text** - Plain text explanations (no LaTeX, no code)
-2. **math** - Pure LaTeX mathematical expressions (no delimiters, no HTML)
-3. **code** - Code snippets with language specification
-
-**STRICT RULES:**
-1. Every math block's value must contain ONLY LaTeX (e.g., \\int_0^1 x^2 \\,dx = \\frac{1}{3}).
-2. DO NOT include HTML tags like <mb>, <m>, <div>, or markdown markers in math blocks.
-3. DO NOT include backtick fences, dollar signs, or stray asterisks in math values.
-4. Code blocks must have "type":"code", "value":"actual code", and "language":"lang_name".
-5. Supported languages: javascript, typescript, python, java, cpp, c, csharp, html, css, json, sql, bash, shell, jsx, tsx
-6. If there's both explanation and equation, return TWO blocks: first text, then math.
-7. DO NOT duplicate content - write each equation or code snippet exactly once.
-
-**GOOD EXAMPLE OUTPUT:**
-[
-  {"type":"text","value":"Here's how to calculate the integral:"},
-  {"type":"math","value":"\\int_0^1 x^2 \\, dx = \\frac{1}{3}"},
-  {"type":"text","value":"In JavaScript, you can implement this as:"},
-  {"type":"code","value":"function integrate(a, b) {\\n  return Math.pow(b, 3) / 3 - Math.pow(a, 3) / 3;\\n}","language":"javascript"}
-]
-
-**BAD EXAMPLES (DO NOT DO THIS):**
-[
-  {"type":"math","value":"<mb>\\\\int x^2 dx</mb>"},  NO HTML TAGS!
-  {"type":"math","value":"$$\\\\int x^2 dx$$"},       NO DOLLAR SIGNS!
-  {"type":"text","value":"The answer is \\\\int x^2"} LaTeX must be in math block!
-  {"type":"text","value":"backtick-python-newline-code-backtick"}     Code must be in code block!
-]
-
-**📚 UPLOADED DOCUMENT CONTEXT (YOUR ONLY SOURCE OF INFORMATION):**
-\${context || "⚠️ NO DOCUMENTS PROVIDED - User needs to provide context."}
-
-**Question:** \${question}
-
-**🚨 CRITICAL GROUNDING INSTRUCTIONS - READ CAREFULLY:**
-${context ? `- **USE ONLY THE CONTEXT ABOVE:** Base your ENTIRE answer on the document context provided above
-- **NEVER USE EXTERNAL KNOWLEDGE:** Do not invent, assume, or recall information not present in the context
-- **IF INFORMATION IS MISSING:** If the context does not contain information to answer the question, respond with: "I don't have that specific information in your uploaded documents. Please upload additional materials or rephrase your question."
-- **CITE YOUR SOURCES:** Reference specific parts of the documents when answering
-- **STAY GROUNDED:** Every statement must be traceable back to the provided context` : `- **NO CONTEXT AVAILABLE:** Respond with: "I don't have any documents to reference. Please upload your study materials so I can help you."`}
-
-**Instructions:**
-- **FORMATTING REQUIREMENTS:**
-  * Start with a clear heading/topic in bold text (use **heading** format)
-  * Follow with a brief explanatory paragraph about the topic
-  * Use bullet points (•) for listing key concepts, steps, or features
-  * Use sub-bullets (◦ or -) for nested details under main points
-  * Structure your response hierarchically: Heading → Description → Main Points → Sub-points
-- If the question asks for code examples, use code blocks with proper language specification
-- **CRITICAL: If the uploaded document contains code in a specific language (e.g., Java, Python, C++), USE THAT SAME LANGUAGE in your code examples**
-- Analyze the document context to determine the programming language being used
-- Match the coding style, syntax, and conventions of the language in the documents
-- Break down complex topics: use text blocks for explanation, math blocks for equations, code blocks for code
-- When providing code, always specify the correct language based on the document context
-
-**EXAMPLE OF GOOD FORMATTING:**
-"**Object-Oriented Programming Basics**
-
-Object-oriented programming (OOP) is a programming paradigm based on the concept of objects. This approach helps organize code into reusable components.
-
-**Key Concepts:**
-• **Classes and Objects**
-  ◦ Classes are blueprints for creating objects
-  ◦ Objects are instances of classes
-• **Encapsulation**
-  ◦ Bundling data and methods together
-  ◦ Hiding internal details"
-
-**Answer (output ONLY valid JSON array):**`;
-
-        const modelConfig = {
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            generationConfig: {
-                responseMimeType: "application/json"
-            }
-        };
-
-        const response = await ai.models.generateContent(modelConfig);
-        const rawResponseText = response.text || '';
-
-        console.log('🤖 RAW AI OUTPUT:', rawResponseText.substring(0, 500));
-
-        // Try to parse as JSON
-        try {
-            let jsonText = rawResponseText.trim();
-
-            // Remove markdown code blocks if present
-            if (jsonText.startsWith('```json')) {
-                jsonText = jsonText.slice(7);
-            } else if (jsonText.startsWith('```')) {
-                jsonText = jsonText.slice(3);
-            }
-            if (jsonText.endsWith('```')) {
-                jsonText = jsonText.slice(0, -3);
-            }
-
-            const parsed = JSON.parse(jsonText.trim());
-
-            if (Array.isArray(parsed)) {
-                console.log('✅ Successfully parsed structured JSON with', parsed.length, 'blocks');
-                return {
-                    blocks: parsed,
-                    suggestions: [],
-                    sources: []
-                };
-            } else {
-                console.warn('⚠️  Parsed JSON is not an array:', typeof parsed);
-            }
-        } catch (e) {
-            console.warn('⚠️  Failed to parse JSON:', e);
-            console.log('Raw text that failed to parse:', rawResponseText);
-        }
-
-        // Fallback: convert text to blocks
-        console.log('📄 Using fallback: converting text to single text block');
-        const textBlock: ContentBlock = {
-            type: 'text',
-            value: rawResponseText
-        };
-
-        return {
-            blocks: [textBlock],
-            suggestions: [],
-            sources: []
-        };
-
-    } catch (error) {
-        console.error("❌ Error getting AI response:", error);
-        return {
-            blocks: [
-                {
-                    type: 'text' as const,
-                    value: `Sorry, I encountered an error: ${error instanceof Error ? error.message : String(error)}`
-                }
-            ],
-            suggestions: [],
-            sources: []
-        };
-    }
-};
+    throw new Error("Frontend AI fallback disabled. All AI calls must go through the authenticated backend endpoint. Please try again or check your connection.");
 
 /**
  * Generate flashcards from document content using Gemini AI

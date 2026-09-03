@@ -138,7 +138,7 @@ const ContextPanel: React.FC<ContextPanelProps> = ({
             </h3>
             
             <div className="grid grid-cols-2 gap-3">
-              <button className="p-4 rounded-lg border hover:border-current transition-all text-left" style={{
+              <button className="p-4 rounded-lg border hover:border-current opacity-50 transition-all text-left" style={{
                 background: 'var(--color-bg-elevated)',
                 borderColor: 'var(--color-border-light)',
                 color: 'var(--color-accent-primary)'
@@ -149,7 +149,7 @@ const ContextPanel: React.FC<ContextPanelProps> = ({
                 <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>Flashcards</p>
               </button>
 
-              <button className="p-4 rounded-lg border hover:border-current transition-all text-left" style={{
+              <button className="p-4 rounded-lg border hover:border-current opacity-50 transition-all text-left" style={{
                 background: 'var(--color-bg-elevated)',
                 borderColor: 'var(--color-border-light)',
                 color: 'var(--color-accent-secondary)'
@@ -160,7 +160,7 @@ const ContextPanel: React.FC<ContextPanelProps> = ({
                 <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>Quizzes</p>
               </button>
 
-              <button className="p-4 rounded-lg border hover:border-current transition-all text-left" style={{
+              <button className="p-4 rounded-lg border hover:border-current opacity-50 transition-all text-left" style={{
                 background: 'var(--color-bg-elevated)',
                 borderColor: 'var(--color-border-light)',
                 color: 'var(--color-accent-lavender)'
@@ -171,7 +171,7 @@ const ContextPanel: React.FC<ContextPanelProps> = ({
                 <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>Summary</p>
               </button>
 
-              <button className="p-4 rounded-lg border hover:border-current transition-all text-left" style={{
+              <button className="p-4 rounded-lg border hover:border-current opacity-50 transition-all text-left" style={{
                 background: 'var(--color-bg-elevated)',
                 borderColor: 'var(--color-border-light)',
                 color: 'var(--color-accent-warm)'
@@ -188,7 +188,7 @@ const ContextPanel: React.FC<ContextPanelProps> = ({
                 Chat Instructions
               </h4>
               <div className="space-y-2">
-                <button className="w-full p-3 rounded-lg border hover:border-current transition-all text-left" style={{
+                <button className="w-full p-3 rounded-lg border hover:border-current opacity-50 transition-all text-left opacity-50 cursor-not-allowed" style={{
                   background: 'var(--color-bg-elevated)',
                   borderColor: 'var(--color-border-light)'
                 }}>
@@ -196,7 +196,7 @@ const ContextPanel: React.FC<ContextPanelProps> = ({
                   <p className="text-xs mt-1" style={{ color: 'var(--color-text-tertiary)' }}>Visual concept mapping</p>
                 </button>
 
-                <button className="w-full p-3 rounded-lg border hover:border-current transition-all text-left" style={{
+                <button className="w-full p-3 rounded-lg border hover:border-current opacity-50 transition-all text-left opacity-50 cursor-not-allowed" style={{
                   background: 'var(--color-bg-elevated)',
                   borderColor: 'var(--color-border-light)'
                 }}>

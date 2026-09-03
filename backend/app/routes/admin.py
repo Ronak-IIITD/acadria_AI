@@ -1,16 +1,13 @@
 """
 Admin routes for privileged operations.
+Uses Clerk JWT verification for authorization.
+Admin access is granted based on verified Clerk JWT metadata/roles,
+not a separate password system.
 """
 
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBearer
-from app.middleware.admin_auth import (
-    AdminAuth,
-    AdminLoginRequest,
-    require_admin,
-    get_current_user_or_admin,
-)
-from app.middleware.auth import get_current_user
+from app.middleware.auth import verify_clerk_token, get_current_user
 import logging
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -18,37 +15,46 @@ logger = logging.getLogger(__name__)
 security = HTTPBearer()
 
 
+def require_admin(user: dict = Depends(get_current_user)) -> dict:
+    """
+    Dependency to require admin access based on Clerk JWT claims.
+    Checks user metadata for admin role.
+    Raises 403 if user is not admin.
+    """
+    if not user.get("is_admin", False):
+        raise HTTPException(
+            status_code=403,
+            detail="Admin access required. User must have admin role in Clerk.",
+        )
+    return user
+
+
+def require_admin_or_premium(user: dict = Depends(get_current_user)) -> dict:
+    """
+    Dependency to require admin or premium plan access.
+    """
+    if user.get("is_admin", False):
+        return user
+    if user.get("plan") not in ["pro", "team", "admin"]:
+        raise HTTPException(
+            status_code=403, detail="Premium or admin access required."
+        )
+    return user
+
+
 @router.post("/login")
-async def admin_login(credentials: AdminLoginRequest):
+async def admin_login():
     """
     Admin login endpoint.
-    Returns session token for admin access.
+    Note: Admin access is now handled via Clerk authentication
+    with appropriate metadata/roles. No separate password system.
     """
-    logger.info(f"🔑 Admin login attempt: {credentials.email}")
-
-    if not AdminAuth.verify_admin_credentials(credentials.email, credentials.password):
-        logger.warning(f"❌ Failed admin login attempt: {credentials.email}")
-        raise HTTPException(status_code=401, detail="Invalid admin credentials")
-
-    # Create admin session
-    session_token = AdminAuth.create_admin_session(credentials.email)
-
-    logger.info(f"✅ Admin logged in: {credentials.email}")
-
+    # Admin access is determined by Clerk JWT claims/metadata
+    # No separate login needed - Clerk handles authentication
     return {
         "success": True,
-        "message": "Admin login successful",
-        "session_token": session_token,
-        "admin": {
-            "email": credentials.email,
-            "role": "superuser",
-            "privileges": [
-                "all_models_access",
-                "unlimited_usage",
-                "user_impersonation",
-                "system_management",
-            ],
-        },
+        "message": "Admin access is managed via Clerk authentication",
+        "note": "Ensure user has 'admin' role or metadata in Clerk dashboard",
     }
 
 
@@ -58,28 +64,25 @@ async def admin_logout(
 ):
     """
     Admin logout endpoint.
-    Invalidates admin session.
+    Invalidates admin session - Clerk handles token revocation.
     """
-    AdminAuth.invalidate_admin_session(token.credentials)
+    # Clerk handles token revocation on logout
     return {"success": True, "message": "Admin logged out successfully"}
 
 
 @router.get("/verify")
-async def verify_admin_session(admin: dict = Depends(require_admin)):
+async def verify_admin_session(
+    token: str = Depends(security), user: dict = Depends(require_admin)
+):
     """
     Verify admin session is valid.
-    Returns admin information.
+    Returns admin information from verified Clerk token.
     """
     return {
         "is_admin": True,
-        "email": admin["email"],
-        "role": admin.get("role", "superuser"),
-        "privileges": [
-            "all_models_access",
-            "unlimited_usage",
-            "user_impersonation",
-            "system_management",
-        ],
+        "email": user.get("email"),
+        "role": user.get("role", "superuser"),
+        "privileges": user.get("privileges", []),
     }
 
 
@@ -88,29 +91,13 @@ async def list_all_users(admin: dict = Depends(require_admin)):
     """
     Admin: List all users in system.
     """
-    # TODO: Query from database
-    # For now, return mock data
+    # In production, this would query from the database
+    # For now, return structured response noting admin access
     return {
-        "users": [
-            {
-                "uid": "user_123",
-                "email": "user@example.com",
-                "plan": "free",
-                "documents": 5,
-                "questions": 23,
-                "joined": "2026-01-15",
-            },
-            {
-                "uid": "user_456",
-                "email": "pro@example.com",
-                "plan": "pro",
-                "documents": 45,
-                "questions": 156,
-                "joined": "2026-01-20",
-            },
-        ],
-        "total": 2,
-        "summary": {"free": 1, "pro": 1, "team": 0},
+        "users": [],
+        "total": 0,
+        "summary": {"free": 0, "pro": 0, "team": 0, "admin": 0},
+        "note": "User list requires database integration. Admin access verified via Clerk.",
     }
 
 
@@ -120,12 +107,13 @@ async def get_system_stats(admin: dict = Depends(require_admin)):
     Admin: Get system-wide statistics.
     """
     return {
-        "total_users": 150,
-        "total_documents": 1250,
-        "total_questions": 8900,
-        "api_calls_today": 450,
-        "storage_used_gb": 45.2,
-        "active_sessions": 23,
+        "total_users": 0,
+        "total_documents": 0,
+        "total_questions": 0,
+        "api_calls_today": 0,
+        "storage_used_gb": 0,
+        "active_sessions": 0,
+        "note": "Statistics require backend database integration.",
     }
 
 
@@ -135,12 +123,11 @@ async def impersonate_user(user_id: str, admin: dict = Depends(require_admin)):
     Admin: Impersonate a user for support purposes.
     Returns temporary token to act as that user.
     """
-    # TODO: Generate temporary impersonation token
-    logger.info(f"👤 Admin {admin['email']} impersonating user: {user_id}")
-
+    # Impersonation requires proper backend implementation
+    # and should use Clerk-backed session management
     return {
-        "impersonation_token": "temp_token_here",
+        "impersonation_token": None,
         "user_id": user_id,
-        "expires_in": 3600,  # 1 hour
-        "message": f"Now acting as user {user_id}",
+        "expires_in": None,
+        "message": "User impersonation requires proper backend implementation",
     }

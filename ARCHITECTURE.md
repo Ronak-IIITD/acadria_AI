@@ -47,8 +47,9 @@ Acadira AI is a full-stack web application built with a **React frontend** and *
 | **Frontend** | React 19, TypeScript, Vite, Tailwind CSS |
 | **Backend** | FastAPI, Python 3.12, Uvicorn |
 | **AI/ML** | Google Gemini 2.5 Flash, Grok (xAI) |
-| **Storage** | Firebase Firestore, Firebase Storage |
-| **Auth** | Firebase Authentication |
+| **Storage** | Local JSON (dev) / Postgres vector (prod) via `rag_storage.py` |
+| **Auth** | Clerk JWT verification |
+| **Database** | Convex (optional - highlights metadata) |
 | **Document Processing** | PyPDF2, PyMuPDF, python-docx, pdfjs-dist |
 
 ---
@@ -164,19 +165,18 @@ Extract Text    Extract Text    Extract Slides
                      ↓
           Combine into Document Object
                      ↓
-          Upload to Firebase Storage
-                     ↓
-          Send metadata to Backend API
+Upload to Cloud Storage
+                      ↓
+           Send metadata to Backend API
 ```
-
-### State Management
 
 For complex state (documents, chat history, flashcards), we use:
 1. **Local Component State** - UI-specific state
-2. **Firebase Realtime Listeners** - Synced user data
-3. **Context API** - Global theme/auth state
+2. **Clerk JWT** - Auth state verified on each request
+3. **Convex** (optional) - Highlights metadata
+4. **Context API** - Global theme state
 
-No Redux needed due to Firebase's built-in state sync.
+RAG persistence via `rag_storage.py` abstraction (Local JSON / Postgres)
 
 ---
 
@@ -441,8 +441,9 @@ def find_similar_chunks(
 
 #### RAG Storage
 
-We use a JSON-based storage system for simplicity (can be upgraded to FAISS or Pinecone):
+We use a storage abstraction layer via `rag_storage.py`:
 
+**Local JSON (development):**
 ```json
 {
   "user_123": {
@@ -462,6 +463,14 @@ We use a JSON-based storage system for simplicity (can be upgraded to FAISS or P
     }
   }
 }
+```
+
+**Postgres Vector (production):**
+Stored in Postgres via `pgvector` extension. Uses `DATABASE_URL` environment variable. See `rag_storage.py` for the abstraction interface.
+
+```python
+storage = get_rag_storage_instance()
+# Use storage.get_documents(user_id), storage.store_document(), etc.
 ```
 
 ---
@@ -563,7 +572,7 @@ response = client.chat.completions.create(
 ### Document Upload Flow
 
 ```
-[Frontend]                    [Backend]                   [Firebase]
+[Frontend]                    [Backend]
     │                             │                           │
     │─────Upload File────────────>│                           │
     │                             │                           │
@@ -575,16 +584,9 @@ response = client.chat.completions.create(
     │                             │                           │
     │                             │──Generate Embeddings─>    │
     │                             │<────────────────────      │
-    │                             │                           │
-    │                             │──Store in RAG DB──>       │
+    │                             │────Store in RAG DB──>       │
     │                             │<──────────────────        │
-    │                             │                           │
-    │                             │──Upload to Storage───────>│
-    │                             │                           │
     │<────Success Response────────│                           │
-    │                             │                           │
-    │──Get Download URL──────────────────────────────────────>│
-    │<───────────────────────────────────────────────────────│
 ```
 
 ### Chat with RAG Flow
@@ -622,12 +624,12 @@ response = client.chat.completions.create(
 
 ### Security Measures
 
-1. **Firebase Token Verification**
+1. **Clerk JWT Verification**
    ```python
-   async def verify_token(token: str = Depends(oauth2_scheme)):
+   async def verify_clerk_jwt(token: str = Depends(oauth2_scheme)):
        try:
-           decoded_token = auth.verify_id_token(token)
-           return decoded_token['uid']
+           decoded_token = await clerk_auth.verify_jwt(token)
+           return decoded_token
        except:
            raise HTTPException(status_code=401, detail="Invalid token")
    ```
@@ -659,6 +661,7 @@ response = client.chat.completions.create(
 5. **Environment Variables**
    - All API keys in `.env` files
    - Never committed to Git
+   - Clerk JWT config: `CLERK_JWT_ISSUER`, `CLERK_JWT_AUDIENCE`, `CLERK_JWT_SECRET`
 
 ---
 
@@ -743,7 +746,7 @@ response = client.chat.completions.create(
 ## Future Improvements
 
 ### Scalability
-- [ ] Move from JSON to FAISS vector database
+- [ ] Move from JSON to Postgres/FAISS vector database
 - [ ] Implement Redis for caching
 - [ ] Add WebSocket for real-time chat streaming
 - [ ] Horizontal scaling with load balancer
@@ -753,6 +756,7 @@ response = client.chat.completions.create(
 - [ ] Implement semantic caching
 - [ ] Add audio transcription support
 - [ ] Multi-modal RAG (images + text)
+- [ ] RAG storage migration: JSON → Postgres
 
 ### DevOps
 - [ ] Docker containerization
@@ -772,9 +776,13 @@ npm test                 # Unit tests with Vitest
 npm run test:ui          # Interactive test UI
 npm run test:coverage    # Coverage report
 
-# Backend tests (to be implemented)
+# Backend tests
 pytest tests/            # Unit tests
 pytest --cov             # Coverage
+
+# RAG storage tests
+# Verify LocalJSONStorage and PostgresVectorStorage correctness
+python -m pytest tests/test_rag_storage/  # RAG storage tests
 ```
 
 ### Linting & Formatting
@@ -803,6 +811,6 @@ When proposing architectural changes:
 
 ---
 
-**Last Updated**: January 2024  
+**Last Updated**: September 2026  
 **Author**: Ronak Anand  
-**Version**: 1.0
+**Version**: 2.0 (Production Release)

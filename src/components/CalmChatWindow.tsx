@@ -515,9 +515,9 @@ const CalmChatWindow: FC<ChatWindowProps> = ({
       <StudyToolsBar
         onQuizClick={() => onQuizClick?.()}
         onFlashcardsClick={() => onFlashcardsClick?.()}
-        onMindMapClick={() => {/* TODO */}}
-        onTimelineClick={() => {/* TODO */}}
-        onSearchClick={() => {/* TODO */}}
+        onMindMapClick={() => alert('Coming soon: Mind Map feature')}
+        onTimelineClick={() => alert('Coming soon: Timeline feature')}
+        onSearchClick={() => alert('Coming soon: Search controls')}
         disabled={files.length === 0}
       />
       

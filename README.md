@@ -75,7 +75,7 @@ Acadira AI is an intelligent learning platform that turns your study materials i
 - **Python 3.12+** (for backend)
 - **Google Gemini API Key** ([Get one free](https://makersuite.google.com/app/apikey))
 - **Clerk Project** (required for auth)
-- **Convex Project** (required for database)
+- **Convex Project** (optional - for highlights metadata, otherwise Postgres suffice)
 
 ### Installation
 
@@ -94,11 +94,11 @@ npm install
 # Create environment file
 cp .env.example .env.local
 
-# Edit .env.local and add your API keys:
-# VITE_API_KEY=your_gemini_api_key
-# VITE_CLERK_PUBLISHABLE_KEY=your_clerk_key
-# VITE_CONVEX_URL=your_convex_url
-# ... (see Configuration section below)
+# Edit .env.local and add your keys:
+# VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+# VITE_CONVEX_URL=your_convex_url (optional, for highlights metadata)
+# VITE_BACKEND_URL=http://localhost:8000 (defaults to localhost)
+# All AI calls route through the authenticated backend - no browser API keys needed
 ```
 
 #### 3. Backend Setup
@@ -143,16 +143,17 @@ FastAPI server starts at `http://localhost:8000`
 Create `.env.local` in the project root:
 
 ```env
-# Google Gemini API
-VITE_API_KEY=your_gemini_api_key_here
+# Clerk (Auth - Required)
+# Get from: Clerk Dashboard > API Keys
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_xxx
 
-# Firebase Configuration
-VITE_FIREBASE_API_KEY=your_firebase_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
-VITE_FIREBASE_APP_ID=1:123456789:web:abcdef
+# Convex (Optional - for highlights metadata)
+# Get from: Convex Dashboard > Settings
+VITE_CONVEX_URL=https://your-project.convex.cloud
+
+# Backend API URL (Optional - defaults to localhost)
+# Set this to your production backend URL when deploying
+VITE_BACKEND_URL=http://localhost:8000
 ```
 
 ### Backend Environment Variables
@@ -289,7 +290,6 @@ gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker
 The frontend build outputs to `dist/` and can be hosted on:
 - **Vercel** (recommended)
 - **Netlify**
-- **Firebase Hosting**
 - Any static file host
 
 ---
@@ -315,11 +315,10 @@ Check out our [detailed feature roadmap](docs/FEATURE_ROADMAP.md) for planned fe
 
 **Coming Soon:**
 - Mind map visualization
-- Audio transcription support
-- YouTube video processing
-- AI-generated podcasts from documents
 - Progress tracking dashboard
 - Mobile apps
+- RAG storage migration: JSON → Postgres/FAISS
+- Alternative AI model support (Grok, Groq)
 
 ---
 
@@ -365,7 +364,7 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 ## Acknowledgments
 
 - **Google Gemini** for the incredible AI capabilities
-- **Firebase** for hassle-free backend infrastructure
+- **Clerk** for hassle-free authentication infrastructure
 - **Vercel** for inspiration on clean, modern UI design
 - **YouLearn.ai** for feature inspiration
 - All the open-source libraries that made this possible

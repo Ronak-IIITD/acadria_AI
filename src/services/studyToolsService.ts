@@ -1,19 +1,45 @@
-import { generateFlashcardsFromContent, getAiResponse } from './geminiService';
+import { getClerkToken } from '../lib/clerkToken';
 import { Flashcard, QuizQuestion, Quiz, Summary } from '@/domain/studyTypes';
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+
+const getAuthHeaders = async (): Promise<Record<string, string>> => {
+  const token = await getClerkToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return headers;
+};
+
 /**
- * Generate flashcards from document content using Gemini AI
+ * Generate flashcards from document using backend API
  */
 export async function generateFlashcards(
-  documentContent: string,
   documentId: string,
   count: number = 10
 ): Promise<Flashcard[]> {
   try {
-    const flashcardData = await generateFlashcardsFromContent(documentContent, count);
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${BACKEND_URL}/api/study/flashcards`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ document_id: documentId, count }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to generate flashcards');
+    }
+
+    const flashcardData = await response.json();
     
     // Convert to Flashcard objects with SM-2 defaults
-    const flashcards: Flashcard[] = flashcardData.map((data, index) => ({
+    const flashcards: Flashcard[] = flashcardData.map((data: any, index: number) => ({
       id: `${documentId}-card-${Date.now()}-${index}`,
       front: data.front,
       back: data.back,
@@ -30,69 +56,42 @@ export async function generateFlashcards(
     return flashcards;
   } catch (error) {
     console.error('Error generating flashcards:', error);
-    throw error; // Re-throw to show the actual error message
+    throw error;
   }
 }
 
 /**
- * Generate a quiz from document content
+ * Generate a quiz from document using backend API
  */
 export async function generateQuiz(
-  documentContent: string,
   documentId: string,
   questionCount: number = 5,
   difficulty: 'easy' | 'medium' | 'hard' | 'mixed' = 'mixed'
 ): Promise<Quiz> {
-  const prompt = `You are a study assistant creating a quiz. Generate ${questionCount} quiz questions from the following document content.
-
-**Document Content:**
-${documentContent}
-
-**Instructions:**
-1. Create exactly ${questionCount} questions
-2. Difficulty level: ${difficulty}
-3. Mix question types:
-   - Multiple choice (4 options, 1 correct)
-   - True/False
-   - Short answer
-4. Include explanations for correct answers
-5. Cover different topics from the document
-
-**Format your response as a JSON array:**
-[
-  {
-    "type": "multiple-choice" | "true-false" | "short-answer",
-    "question": "The question text",
-    "options": ["Option A", "Option B", "Option C", "Option D"], // only for multiple-choice
-    "correctAnswer": "The correct answer",
-    "explanation": "Why this is correct and what concept it tests",
-    "difficulty": "easy" | "medium" | "hard"
-  }
-]
-
-Return ONLY the JSON array, no additional text.`;
-
   try {
-    const response = await getAiResponse(prompt, [], false, 'gemini', false);
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${BACKEND_URL}/api/study/quiz`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ 
+        document_id: documentId, 
+        question_count: questionCount,
+        difficulty 
+      }),
+    });
 
-    // Extract text from blocks
-    let responseText = response.blocks
-      .filter(block => block.type === 'text')
-      .map(block => block.value)
-      .join('\n');
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to generate quiz');
+    }
 
-    let jsonText = responseText.trim();
-    if (jsonText.startsWith('```json')) jsonText = jsonText.slice(7);
-    else if (jsonText.startsWith('```')) jsonText = jsonText.slice(3);
-    if (jsonText.endsWith('```')) jsonText = jsonText.slice(0, -3);
-
-    const questionsData = JSON.parse(jsonText.trim());
+    const questionsData = await response.json();
     
     const questions: QuizQuestion[] = questionsData.map((data: any, index: number) => ({
       id: `${documentId}-quiz-${Date.now()}-${index}`,
       question: data.question,
       options: data.options,
-      correctAnswer: data.correctAnswer,
+      correctAnswer: data.correct_answer,
       explanation: data.explanation,
       difficulty: data.difficulty || difficulty,
       type: data.type,
@@ -103,7 +102,7 @@ Return ONLY the JSON array, no additional text.`;
       documentId,
       questions,
       totalQuestions: questions.length,
-      userId: 'anonymous', // User ID managed via Firebase Auth token in API calls
+      userId: 'anonymous', // User ID managed via Clerk Auth token in API calls
     };
     
     return quiz;
@@ -114,64 +113,32 @@ Return ONLY the JSON array, no additional text.`;
 }
 
 /**
- * Generate a summary of document content
+ * Generate a summary of document using backend API
  */
 export async function generateSummary(
-  documentContent: string,
   documentId: string,
   mode: 'brief' | 'detailed' | 'bullets' = 'detailed'
 ): Promise<Summary> {
-  let prompt = '';
-  
-  switch (mode) {
-    case 'brief':
-      prompt = `Provide a brief 2-3 sentence summary of the following content. Focus on the absolute main points only.
-
-**Content:**
-${documentContent}
-
-**Summary:**`;
-      break;
-    
-    case 'bullets':
-      prompt = `Extract the key takeaways from the following content as a bulleted list. Include 5-10 main points.
-
-**Content:**
-${documentContent}
-
-**Key Takeaways:**
-• `;
-      break;
-    
-    case 'detailed':
-    default:
-      prompt = `Provide a comprehensive summary of the following content. Include:
-1. Main topic/thesis
-2. Key concepts and their relationships
-3. Important details and examples
-4. Conclusions or implications
-
-**Content:**
-${documentContent}
-
-**Detailed Summary:**`;
-      break;
-  }
-  
   try {
-    const response = await getAiResponse(prompt, [], false, 'gemini', false);
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${BACKEND_URL}/api/study/summary`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ document_id: documentId, mode }),
+    });
 
-    // Extract text from blocks
-    const content = response.blocks
-      .filter(block => block.type === 'text')
-      .map(block => block.value)
-      .join('\n');
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to generate summary');
+    }
 
+    const data = await response.json();
+    
     const summary: Summary = {
       id: `summary-${documentId}-${mode}-${Date.now()}`,
       documentId,
       mode,
-      content,
+      content: data.summary,
       generatedAt: new Date(),
     };
 
@@ -183,38 +150,26 @@ ${documentContent}
 }
 
 /**
- * Extract key takeaways from document
+ * Extract key takeaways from document using backend API
  */
 export async function generateKeyTakeaways(
-  documentContent: string,
+  documentId: string,
   count: number = 5
 ): Promise<string[]> {
-  const prompt = `Extract the ${count} most important key takeaways from the following content. Each takeaway should be a single, clear statement.
-
-**Content:**
-${documentContent}
-
-**Format:**
-Return ONLY a JSON array of strings:
-["Takeaway 1", "Takeaway 2", "Takeaway 3", ...]
-
-No additional text or formatting.`;
-
   try {
-    const response = await getAiResponse(prompt, [], false, 'gemini', false);
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${BACKEND_URL}/api/study/takeaways`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ document_id: documentId, count }),
+    });
 
-    // Extract text from blocks
-    let responseText = response.blocks
-      .filter(block => block.type === 'text')
-      .map(block => block.value)
-      .join('\n');
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to generate key takeaways');
+    }
 
-    let jsonText = responseText.trim();
-    if (jsonText.startsWith('```json')) jsonText = jsonText.slice(7);
-    else if (jsonText.startsWith('```')) jsonText = jsonText.slice(3);
-    if (jsonText.endsWith('```')) jsonText = jsonText.slice(0, -3);
-
-    const takeaways = JSON.parse(jsonText.trim());
+    const takeaways = await response.json();
     return takeaways;
   } catch (error) {
     console.error('Error generating key takeaways:', error);
