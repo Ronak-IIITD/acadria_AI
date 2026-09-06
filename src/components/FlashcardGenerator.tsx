@@ -28,7 +28,7 @@ export default function FlashcardGenerator({
     setError(null);
 
     try {
-      const flashcards = await generateFlashcards(documentContent, documentId, cardCount);
+      const flashcards = await generateFlashcards(documentId, cardCount);
       onGenerate(flashcards);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate flashcards');

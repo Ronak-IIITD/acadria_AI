@@ -59,7 +59,7 @@ class ErrorBoundary extends Component<Props, State> {
           <p className="text-sm mb-4 max-w-md" style={{ color: 'var(--color-text-secondary)' }}>
             An unexpected error occurred. Please try again or refresh the page.
           </p>
-          {process.env.NODE_ENV === 'development' && this.state.error && (
+          {import.meta.env.DEV && this.state.error && (
             <details className="text-left text-xs p-3 rounded-lg mb-4 max-w-lg overflow-auto" style={{ background: 'var(--color-bg-secondary)' }}>
               <summary className="cursor-pointer font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>
                 Error Details

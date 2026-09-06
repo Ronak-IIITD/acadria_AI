@@ -53,25 +53,6 @@ const decodeBase64 = (base64: string): string => {
 };
 
 /**
- * Decodes a Base64 string to a UTF-8 string.
- * @param base64 The Base64 encoded string.
- * @returns The decoded string.
- */
-const decodeBase64 = (base64: string): string => {
-    try {
-        const binaryString = atob(base64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-        return new TextDecoder('utf-8').decode(bytes);
-    } catch (e) {
-        console.error("Failed to decode base64 content:", e);
-        return "";
-    }
-};
-
-/**
  * Parses text content from a Base64 encoded PDF file.
  * @param base64 The Base64 encoded PDF content.
  * @returns The extracted text content, or an empty string if parsing fails.
@@ -298,7 +279,7 @@ const formatChatHistory = (messages: ChatMessage[]): string => {
 export const getAiSummary = async (
     type: 'chat' | 'document',
     content: ChatMessage[] | StudyFile
-): Promise<{ blocks: ContentBlock[] }> => {
+): Promise<{ blocks: ContentBlock[]; suggestions?: { displayText: string; query: string }[] }> => {
     // All AI summary generation is now handled via backend API
     // to avoid browser-side API key exposure
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
@@ -338,12 +319,13 @@ export const getAiSummary = async (
             let textContent: string | null = null;
 
             // For text-based files, extract from base64 (client-side parsing is OK for display,
-            # but the actual AI summary goes through backend)
+            // but the actual AI summary goes through backend)
             if (file.type === 'TXT' || file.type === 'MD' || file.type === 'RTF') {
                 textContent = file.content ? decodeBase64(file.content) : null;
             } else {
-                // For PDF/DOCX/PPTX, we extract text client-side for the summary request,
-                # but note: in production, the backend should handle full extraction
+                // For PDF/DOCX/PPTX, extract text client-side for the summary request.
+                // Note: in production, the backend should handle full extraction.
+
                 switch (file.type) {
                     case 'PDF': textContent = file.content ? await parsePdfContent(file.content) : null; break;
                     case 'DOCX': textContent = file.content ? await parseDocxContent(file.content) : null; break;
@@ -479,94 +461,29 @@ export const getAiResponse = async (
     }
 
     // Frontend AI fallback intentionally removed.
-    // This uses the old text-based approach
-    // Frontend AI fallback intentionally removed.
     // All AI calls are routed through authenticated backend endpoints
     // to prevent browser-side API key exposure. If the backend is unavailable,
-    # the user should try again later or check their connection.
+    // the user should try again later or check their connection.
     // Frontend calls using browser-owned API keys (VITE_API_KEY) are
-    # intentionally disabled. The backend (FastAPI) handles all provider calls
-    # using secret keys stored server-side.
+    // intentionally disabled. The backend (FastAPI) handles all provider calls
+    // using secret keys stored server-side.
 
     throw new Error("Frontend AI fallback disabled. All AI calls must go through the authenticated backend endpoint. Please try again or check your connection.");
+};
 
 /**
- * Generate flashcards from document content using Gemini AI
- * @param documentContent The text content to generate flashcards from
- * @param count Number of flashcards to generate
- * @returns Array of flashcard data with front, back, and tags
+ * Generate flashcards from document content using the backend API.
+ * Browser-side provider calls are disabled (no VITE_API_KEY in the browser).
+ * Use the authenticated backend /api/study/flashcards endpoint via studyToolsService instead.
+ * This export is kept for backward compatibility and always throws.
  */
 export const generateFlashcardsFromContent = async (
     documentContent: string,
     count: number = 10
 ): Promise<Array<{ front: string; back: string; tags: string[] }>> => {
-    if (!API_KEY || API_KEY === 'placeholder-key') {
-        throw new Error('API key not configured. Please set VITE_API_KEY in your .env file.');
-    }
-
-    const prompt = `You are a study assistant helping students learn. Generate ${count} high-quality flashcards from the following document content.
-
-**Document Content:**
-${documentContent}
-
-**Instructions:**
-1. Create exactly ${count} flashcards covering the most important concepts
-2. Each flashcard should have:
-   - Front: A clear, concise question or prompt
-   - Back: A comprehensive answer with explanation
-3. Vary difficulty levels (some easy recall, some deeper understanding)
-4. Focus on key concepts, definitions, processes, and relationships
-5. Make questions specific and unambiguous
-
-**Math Formatting:**
-If your flashcards contain mathematical expressions, wrap them in tags with proper LaTeX:
-- Inline math: <m>\\frac{x^{2}}{2}</m>
-- Block equations: <mb>\\int_{0}^{1} x^{2} \\, dx = \\frac{1}{3}</mb>
-- Use \\frac{}{} for fractions, \\sqrt{} for roots, ^{} for exponents
-
-**Format your response as a JSON array:**
-[
-  {
-    "front": "Question or prompt text",
-    "back": "Answer with explanation",
-    "tags": ["concept1", "concept2"]
-  }
-]
-
-Return ONLY the JSON array, no additional text or markdown code blocks.`;
-
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-1.5-flash',
-            contents: prompt,
-        });
-
-        const responseText = response.text || '';
-        let jsonText = responseText.trim();
-
-        // Remove markdown code blocks if present
-        if (jsonText.startsWith('```json')) {
-            jsonText = jsonText.slice(7);
-        } else if (jsonText.startsWith('```')) {
-            jsonText = jsonText.slice(3);
-        }
-        if (jsonText.endsWith('```')) {
-            jsonText = jsonText.slice(0, -3);
-        }
-
-        const flashcardData = JSON.parse(jsonText.trim());
-
-        if (!Array.isArray(flashcardData)) {
-            throw new Error('Invalid response format from AI');
-        }
-
-        return flashcardData.map((data: any) => ({
-            front: data.front || '',
-            back: data.back || '',
-            tags: data.tags || [],
-        }));
-    } catch (error) {
-        console.error('Error generating flashcards:', error);
-        throw new Error('Failed to generate flashcards. The AI response may have been in an unexpected format.');
-    }
+    void documentContent;
+    void count;
+    throw new Error(
+        'generateFlashcardsFromContent is disabled in the browser. Use the authenticated backend /api/study/flashcards endpoint via studyToolsService instead.'
+    );
 };

@@ -198,7 +198,7 @@ const Dashboard: React.FC = () => {
     
     setIsQuizLoading(true);
     try {
-      const quiz = await generateQuiz(quizGeneratingFor.content, quizGeneratingFor.id, count, difficulty);
+      const quiz = await generateQuiz(quizGeneratingFor.id, count, difficulty);
       setCurrentQuiz(quiz);
       setQuizGeneratingFor(null);
     } catch (error) {
@@ -226,7 +226,7 @@ const Dashboard: React.FC = () => {
     
     setIsSummaryLoading(true);
     try {
-      const summary = await generateSummary(summaryFile.content, summaryFile.id, mode);
+      const summary = await generateSummary(summaryFile.id, mode);
       setCurrentSummary(summary);
     } catch (error) {
       console.error('Failed to generate summary:', error);
@@ -247,7 +247,7 @@ const Dashboard: React.FC = () => {
     
     setIsTakeawaysLoading(true);
     try {
-      const takeaways = await generateKeyTakeaways(takeawaysFile.content, count);
+      const takeaways = await generateKeyTakeaways(takeawaysFile.id, count);
       setCurrentTakeaways(takeaways);
     } catch (error) {
       console.error('Failed to generate key takeaways:', error);
